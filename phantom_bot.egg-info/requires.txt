@@ -1,0 +1,6 @@
+python-telegram-bot<22,>=21
+python-dotenv<2,>=1
+requests<3,>=2.31
+
+[dev]
+pytest<9,>=8
