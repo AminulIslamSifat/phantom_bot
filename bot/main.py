@@ -8,6 +8,9 @@ async def health(request):
     request.web.response(text="ok")
 
 async def start_server():
+    web_app = web.Application()
+    web_app.router.add_get("/", health)
+
     runner = web.AppRunner(web.Application())
     await runner.setup()
     site = web.TCPSite(runner, "0.0.0.0", int(os.environ.get("PORT", 8000)))
