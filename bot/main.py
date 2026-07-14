@@ -5,7 +5,7 @@ import os
 
 
 async def health(request):
-    return web.response(text="ok")
+    return web.Response(text="ok")
 
 async def start_server():
     web_app = web.Application()
