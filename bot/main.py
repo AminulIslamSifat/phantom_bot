@@ -11,7 +11,7 @@ async def start_server():
     web_app = web.Application()
     web_app.router.add_get("/", health)
 
-    runner = web.AppRunner(web.Application())
+    runner = web.AppRunner(web_app)
     await runner.setup()
     site = web.TCPSite(runner, "0.0.0.0", int(os.environ.get("PORT", 8000)))
     await site.start()
