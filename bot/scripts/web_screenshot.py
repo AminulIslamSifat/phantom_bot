@@ -1,7 +1,9 @@
 import os
 import requests
 import urllib.parse
-from config import ROUTINE_URL, SCREENSHOT_API
+from config import (
+    SCREENSHOT_API
+)
 
 def take_web_screenshot(url, output_path="resources/routine"):
     encoded_url = urllib.parse.quote_plus(url)
@@ -16,5 +18,3 @@ def take_web_screenshot(url, output_path="resources/routine"):
         print(f"API Error - Status: {response.status_code}")
         print(f"Response: {response.text}")
     
-
-take_web_screenshot(ROUTINE_URL, "resources/routine/screenshot.png")

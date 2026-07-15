@@ -1,20 +1,19 @@
-import os
-import requests
-import urllib.parse
-from config import ROUTINE_URL, SCREENSHOT_API
+import httpx
+import asyncio
 
-def take_web_screenshot(url, output_path="resources/routine"):
-    encoded_url = urllib.parse.quote_plus(url)
-    api_url = f"https://shot.screenshotapi.net/screenshot?token={SCREENSHOT_API}&url={encoded_url}&output=image&file_type=png"
-    response = requests.get(api_url)
+FIREBASE_URL = 'https://last-197cd-default-rtdb.firebaseio.com/routines.json'
 
-    if response.status_code == 200:
-        with open(output_path, "wb") as file:
-            file.write(response.content)
-        return output_path
-    else:
-        print(f"API Error - Status: {response.status_code}")
-        print(f"Response: {response.text}")
+
+#function to fetch ct data from firebase url
+async def get_ct_data():
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(FIREBASE_URL)
+            response.raise_for_status()
+            print(response.json())
+            return response.json() or {}
+    except Exception as e:
+        print(f"Error in get_ct_data functio. \n\n Error Code -{e}")
+        return None
     
-
-take_web_screenshot(ROUTINE_URL, "resources/routine/screenshot.png")
+asyncio.run(get_ct_data())

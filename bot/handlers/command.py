@@ -5,3 +5,6 @@ from config import main_keyboard
 
 async def start(update:Update, context: ContextTypes) -> None:
     await update.message.reply_text(f"Hello {update.effective_user.last_name}", reply_markup=main_keyboard)
+
+async def help(update:Update, context:ContextTypes) -> None:
+    await update.message.reply_text("The Guide on how to use this is given below: ")

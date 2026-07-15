@@ -1,3 +1,6 @@
 .env
 .venv/
 venv/
+phantom_bot.egg-info/
+.data/
+__pycache__/
