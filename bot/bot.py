@@ -1,7 +1,13 @@
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
-from bot.handlers.starter import start
-from bot.handlers.message import message_handler
+from bot.handlers.command import start
 from config import TELEGRAM_BOT_TOKEN
+from bot.handlers.message import message_handler
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler, 
+    MessageHandler, 
+    filters
+)
+
 
 
 TOKEN = TELEGRAM_BOT_TOKEN
