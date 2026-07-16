@@ -11,7 +11,20 @@ def get_available_video_formats(link: str) -> Dict[str, Tuple[str, str]]:
     """Returns {label: (format_selector, size)} sorted high to low.
     Uses resolution-based format selectors instead of raw format IDs
     to avoid issues with ephemeral/session-specific IDs on streaming sites.
+    Snaps available heights to standard resolution tiers for clean display.
     """
+
+    # Standard resolution tiers (label -> max height to qualify)
+    STANDARD_TIERS = [
+        ("4K",    2160),
+        ("1440p", 1440),
+        ("1080p", 1080),
+        ("720p",  720),
+        ("480p",  480),
+        ("360p",  360),
+        ("240p",  240),
+        ("144p",  144),
+    ]
 
     ydl_opts = {'quiet': True, 'no_warnings': True}
 
@@ -31,21 +44,32 @@ def get_available_video_formats(link: str) -> Dict[str, Tuple[str, str]]:
             return {}
 
         formats = info.get('formats', [])
-        quality_map = {}
-        seen_heights = set()
 
-        # Video: must have height. Prefer progressive (https) over HLS.
-        vids = [f for f in formats if f.get('height')]
-        vids.sort(key=lambda x: (x['height'], not x.get('protocol', '').startswith('m3u8')), reverse=True)
-        for f in vids:
-            height = f['height']
-            label = f"{height}p"
-            if height not in seen_heights:
-                seen_heights.add(height)
-                size = f.get('filesize') or f.get('filesize_approx')
-                # Use a stable format selector string, not the raw format_id
-                format_selector = f"best[height={height}]/bestvideo[height={height}]+bestaudio/best"
-                quality_map[label] = (format_selector, fmt_size(size))
+        # Collect all available heights
+        available_heights = sorted(
+            set(f['height'] for f in formats if f.get('height')),
+            reverse=True
+        )
+
+        quality_map = {}
+
+        for tier_label, tier_max in STANDARD_TIERS:
+            # Pick the best height at or below this tier that exists
+            matching = [h for h in available_heights if h <= tier_max]
+            if not matching:
+                continue
+            best_height = matching[0]  # highest within this tier
+
+            if tier_label not in quality_map:
+                # Find a format at this height to get size info
+                candidates = [
+                    f for f in formats
+                    if f.get('height') == best_height
+                    and (f.get('filesize') or f.get('filesize_approx'))
+                ]
+                size = (candidates[0].get('filesize') or candidates[0].get('filesize_approx')) if candidates else None
+                format_selector = f"best[height<={tier_max}]/bestvideo[height<={tier_max}]+bestaudio/best"
+                quality_map[tier_label] = (format_selector, fmt_size(size))
 
         # Audio only option
         auds = [f for f in formats if not f.get('height') and f.get('abr')]
@@ -57,6 +81,9 @@ def get_available_video_formats(link: str) -> Dict[str, Tuple[str, str]]:
             quality_map[label] = ("bestaudio/best", fmt_size(size))
 
     return quality_map
+
+
+
 
 
 

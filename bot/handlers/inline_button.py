@@ -84,11 +84,16 @@ async def yt_download_file_id_handler(update: Update, context: ContextTypes) -> 
         await update.effective_message.reply_text("Session Expired. Please try again.")
         return
 
-    raw = query.data.split(":")[-1]  # e.g. "v|720" or "a"
+    # Tier-to-max-height map (must match get_available_video_formats)
+    TIER_MAX = {"4K": 2160, "1440p": 1440, "1080p": 1080, "720p": 720,
+                "480p": 480, "360p": 360, "240p": 240, "144p": 144}
+
+    raw = query.data.split(":")[-1]  # e.g. "v|1080p" or "a"
     if raw.startswith("v|"):
-        height = raw[2:]
-        format_selector = f"best[height={height}]/bestvideo[height={height}]+bestaudio/best"
-        label = f"{height}p"
+        tier = raw[2:]
+        tier_max = TIER_MAX.get(tier, 720)
+        format_selector = f"best[height<={tier_max}]/bestvideo[height<={tier_max}]+bestaudio/best"
+        label = tier
     else:
         format_selector = "bestaudio/best"
         label = "Audio"
@@ -118,12 +123,12 @@ async def receieve_yt_link(update:Update, context:ContextTypes) -> None:
 
     formats_keyboard_list = []
     for label, (fid, size) in format_map.items():
-        # Compact callback: v|HEIGHT for video, a for audio
-        # Telegram callback_data limit is 64 bytes
-        if label.endswith('p') and label[:-1].isdigit():
-            cb = f"resources:yt_downloader:download:v|{label[:-1]}"
-        else:
+        # Compact callback: v|TIER_LABEL for video, a for audio
+        # Telegram callback_data limit is 64 bytes - longest: "resources:yt_downloader:download:v|1440p" = 42 bytes
+        if label.startswith("Audio"):
             cb = "resources:yt_downloader:download:a"
+        else:
+            cb = f"resources:yt_downloader:download:v|{label}"
         formats_keyboard_list.append([InlineKeyboardButton(f"{label} : {size}", callback_data=cb)])
     formats_keyboard_list.append([InlineKeyboardButton("Cancel", callback_data="resources:cancel")])
     formats_keyboard = InlineKeyboardMarkup(formats_keyboard_list)

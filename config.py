@@ -11,7 +11,6 @@ from telethon.sessions import StringSession
 load_dotenv()
 IS_LOCAL = os.environ["IS_LOCAL"]
 TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN_TEST"] if IS_LOCAL=="True" else os.environ["TELEGRAM_BOT_TOKEN"]
-print(TELEGRAM_BOT_TOKEN)
 SCREENSHOT_API = os.environ["SCREENSHOT_API"]
 USE_WEBHOOK =  os.environ["USE_WEBHOOK"]
 ROUTINE_URL_ODD_WEEK = "https://ruet-cse-c-routine.vercel.app/routine-odd-week/"
