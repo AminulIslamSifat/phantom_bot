@@ -13,6 +13,9 @@ dependencies = [
 	"python-dotenv>=1,<2",
 	"requests>=2.31,<3",
     "aiohttp>=3.14.1",
+	"pymongo[srv]",
+	"yt-dlp",
+	"telethon==1.44.0",
 ]
 
 [project.optional-dependencies]

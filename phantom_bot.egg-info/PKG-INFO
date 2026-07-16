@@ -8,5 +8,8 @@ Requires-Dist: python-telegram-bot<22,>=21
 Requires-Dist: python-dotenv<2,>=1
 Requires-Dist: requests<3,>=2.31
 Requires-Dist: aiohttp>=3.14.1
+Requires-Dist: pymongo[srv]
+Requires-Dist: yt-dlp
+Requires-Dist: telethon==1.44.0
 Provides-Extra: dev
 Requires-Dist: pytest<9,>=8; extra == "dev"

@@ -2,6 +2,9 @@ python-telegram-bot<22,>=21
 python-dotenv<2,>=1
 requests<3,>=2.31
 aiohttp>=3.14.1
+pymongo[srv]
+yt-dlp
+telethon==1.44.0
 
 [dev]
 pytest<9,>=8
