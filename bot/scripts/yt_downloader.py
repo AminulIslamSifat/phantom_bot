@@ -152,6 +152,10 @@ async def download_and_upload(bot, chat_id: int, link: str, format_id: str):
             info = await loop.run_in_executor(None, lambda: ydl.extract_info(link, download=True))
             file_path = ydl.prepare_filename(info)
 
+        if is_audio_only:
+            base, _ = os.path.splitext(file_path)
+            file_path = f"{base}.mp3"
+
         if not os.path.exists(file_path):
             await update_status("❌ Download failed.")
             return
