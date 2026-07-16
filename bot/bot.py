@@ -45,7 +45,7 @@ app.add_handler(ConversationHandler(
 
 #specific hadler
 app.add_handler(CallbackQueryHandler(admin_button_handler, pattern="^admin:"))
-app.add_handler(CallbackQueryHandler(yt_download_file_id_handler, pattern="^resources:yt_downloader:download:"))
+app.add_handler(CallbackQueryHandler(yt_download_file_id_handler, pattern="^resources:yt_downloader:download:", block=False))
 app.add_handler(CallbackQueryHandler(resources_button_handler, pattern="^resources:"))
 
 
