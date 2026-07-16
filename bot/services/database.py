@@ -1,5 +1,6 @@
 from config import mdb_client, user_data_path, routine_week_selector_path
 import json
+import os
 
 
 
@@ -8,6 +9,7 @@ db = mdb_client["phantom_bot_db"]
 
 
 def load_users():
+    os.makedirs(".data/", exist_ok=True)
     try:
         collections = db.list_collection_names()
         user_collections = []
@@ -40,6 +42,7 @@ def load_users():
 
 
 def load_routine_odd_even_sequence():
+    os.makedirs(".data/", exist_ok=True)
     try:
         routine_collection = db["routine_week_selector"]
         routine_week_data = routine_collection.find_one({"id": "routine_week_selector"})
