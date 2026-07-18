@@ -9,24 +9,17 @@ from config import (
 from bot.services.routine import is_even_week
 
 
-
-admin_keyboard = InlineKeyboardMarkup([
-    [InlineKeyboardButton("Update Routine", callback_data="admin:routine_update"), InlineKeyboardButton("Edit Routine", url="https://ruet-cse-c-routine.vercel.app/admin/")],
-    [InlineKeyboardButton("Toggle Routine", callback_data="admin:routine_toggle"), InlineKeyboardButton("Circualte Routine", callback_data="admin:routine_circulate")],
-    [InlineKeyboardButton("Edit Schedule", callback_data="admin:schedule_edit"), InlineKeyboardButton("Circulate Schedule", callback_data="admin:schedule_circulate")],
-    [InlineKeyboardButton("Publish Notice", callback_data="admin:notice"), InlineKeyboardButton("Show User", callback_data="admin:show_user")],
-    [InlineKeyboardButton("Cancel", callback_data="admin:cancel")]
-])
-
 resources_keyboard = InlineKeyboardMarkup([
-    [InlineKeyboardButton("Cover Page", callback_data="resources:cover_page")],
     [InlineKeyboardButton("Drive", callback_data="resources:drive"), InlineKeyboardButton("Syllabus", callback_data="resources:syllabus")],
-    [InlineKeyboardButton("YT-downloader", callback_data="resources:yt_downloader"), InlineKeyboardButton("CSE website", callback_data="resources:cse_web")],
+    [InlineKeyboardButton("YT-downloader", callback_data="resources:yt_downloader"), InlineKeyboardButton("CSE Archive", url="https://ruetcsearchive.app/")],
     [InlineKeyboardButton("G. Classroom Code", callback_data="resources:goolge_classroom_code"), InlineKeyboardButton("All websites", callback_data="resources:all_websites")],
     [InlineKeyboardButton("Cancel", callback_data="resources:cancel")]
 ])
 
-
+resources_cover_page_keyboard = InlineKeyboardMarkup([
+    [InlineKeyboardButton("Official", url="https://ruet-cover-page.github.io/"), InlineKeyboardButton("Unofficial", callback_data="resources:cover_page:unofficial")],
+    [InlineKeyboardButton("Cancel", callback_data="resources:cancel")]
+])
 
 
 
@@ -56,12 +49,11 @@ async def routine(update, context):
     except Exception as e:
         print(f"Routine function error - {e}")
 
-async def schedule(update, context):
-    await update.message.reply_text("schedule will come soon")
+async def schedule(update:Update, context:ContextTypes):
+    await update.message.reply_text("schedule will come soon", reply_markup=main_keyboard)
 
-async def admin(update:Update, context:ContextTypes) -> None:
-    await update.message.reply_text("Admin Panel: ", reply_markup=admin_keyboard)
-
+async def cover_page(update:Update, context:ContextTypes) -> None:
+    await update.message.reply_text("Official is the ruet-cover-page from github, Unofficial is a project of Sec C. You can find your cover page prepared automatically in unofficial section.", reply_markup=resources_cover_page_keyboard)
 
 
 async def message_handler(update: Update, context: ContextTypes) -> None:
@@ -72,7 +64,7 @@ async def message_handler(update: Update, context: ContextTypes) -> None:
         "Routine": routine,
         "Schedule": schedule,
         "Resources": resources, 
-        "Admin": admin
+        "Cover Page": cover_page
     }
     command = predefined_commands.get(user_text)
 

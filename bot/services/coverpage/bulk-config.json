@@ -1,0 +1,25 @@
+{
+  "department": "Computer Science & Engineering",
+  "type": "Lab Report",
+  "courseNo": "2102",
+  "courseTitle": "Discrete Mathmatics Sessional",
+  "coverNo": "2",
+  "coverTitle": "Predicates, Quantifiers, and Rules of Inference",
+  "teacherName": "Khaled Zinnurine",
+  "teacherDesignation": "Lecturer",
+  "teacherDepartment": "Computer Science",
+  "dateOfExperiment": "2026-07-08",
+  "dateOfSubmission": "2026-07-15",
+  "watermark": false,
+  "courseCode": false,
+  "studentSeries": false,
+  "studentSession": false,
+  "assessmentTable": false,
+  "students": [
+    {
+      "id": "2403123",
+      "name": "Aminul Islam Sifat",
+      "section": "C"
+    }
+  ]
+}

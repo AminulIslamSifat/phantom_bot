@@ -65,5 +65,37 @@ def update_mongodb_data(collection, data, database=db):
 
 
 def load_data():
+    load_teacher_data()
     load_users()
     load_routine_odd_even_sequence()
+
+def load_teacher_data():
+    """Fetch teacher list from live API and cache locally as JSON."""
+    import urllib.request
+    from config import teacher_data_path, TEACHER_API_URL
+
+    os.makedirs(".data/", exist_ok=True)
+    try:
+        req = urllib.request.Request(TEACHER_API_URL, headers={"User-Agent": "PhantomBot/1.0"})
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            raw = json.loads(resp.read().decode())
+
+        teachers = {}
+        for t in raw.get("list", []):
+            name = t.get("name", "").strip()
+            if not name:
+                continue
+            teachers[name.lower()] = {
+                "name": name,
+                "post": t.get("post", ""),
+                "dept": t.get("dept", "")
+            }
+
+        with open(teacher_data_path, "w") as f:
+            json.dump(teachers, f, indent=4)
+        print(f"Teacher data cached: {len(teachers)} entries → {teacher_data_path}")
+    except Exception as e:
+        print(f"Error fetching teacher data: {e}")
+        # Fallback: keep existing cache if API fails
+        if os.path.exists(teacher_data_path):
+            print("Using existing cached teacher data.")

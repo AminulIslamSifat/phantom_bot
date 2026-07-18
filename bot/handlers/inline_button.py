@@ -3,12 +3,16 @@ from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup
 )
+import os
+import json
 import asyncio
 import threading
 from telegram.ext import ContextTypes, ConversationHandler
-from config import available_drive,tg_client
+from config import available_drive,tg_client, available_g_classroom, available_syllabus_official, available_syllabus_unofficial, user_data_path
 from bot.services.routine import update_routine, toggle_routine
-from bot.scripts.yt_downloader import get_available_video_formats, download_and_upload
+from bot.scripts.yt_downloader import download_and_upload
+from bot.services.routine import is_even_week
+from config import routine_path_even_week, routine_path_odd_week
 
 
 
@@ -19,137 +23,169 @@ admin_toggle_routine_keyboard = InlineKeyboardMarkup([
     [InlineKeyboardButton("Confirm", callback_data="admin:toggle_routine:confirm"), InlineKeyboardButton("Cancel", callback_data="admin:cancel")]
 ])
 
-resources_drive_keyboard = InlineKeyboardMarkup([
-    [InlineKeyboardButton(x, url=y) for x,y in available_drive.items()],
-    [InlineKeyboardButton("Cancel", callback_data="resources:cancel")]
-])
+resources_drive_buttons = [[InlineKeyboardButton(x, url=y)] for x, y in available_drive.items()]
+resources_drive_buttons.append([InlineKeyboardButton("Cancel", callback_data="resources:cancel")])
+resources_drive_keyboard = InlineKeyboardMarkup(resources_drive_buttons)
+
+resources_syllabus_official_buttons = [[InlineKeyboardButton(x, callback_data=f"resources:syllabus:official:{x}") for x in available_syllabus_official]]
+resources_syllabus_official_buttons.append([InlineKeyboardButton("Cancel", callback_data="resources:cancel")])
+resources_syllabus_official_keyboard = InlineKeyboardMarkup(resources_syllabus_official_buttons)
+
+resources_syllabus_unofficial_buttons = [[InlineKeyboardButton(x, callback_data=f"resources:syllabus:unofficial:{x}") for x in available_syllabus_official]]
+resources_syllabus_unofficial_buttons.append([InlineKeyboardButton("Cancel", callback_data="resources:cancel")])
+resources_syllabus_unofficial_keyboard = InlineKeyboardMarkup(resources_syllabus_unofficial_buttons)
+
 
 resources_syllabus_keyboard = InlineKeyboardMarkup([
     [InlineKeyboardButton("Official", callback_data="resources:syllabus:official"), InlineKeyboardButton("Unofficial", callback_data="resources:syllabus:unofficial")],
     [InlineKeyboardButton("Cancel", callback_data="resources:cancel")]
 ])
 
-resources_yt_downloader_keyboard = InlineKeyboardMarkup([
-    [InlineKeyboardButton("Cancel", callback_data="resources:cancel")]
-])
 
-resources_cover_page_keyboard = InlineKeyboardMarkup([
-    [InlineKeyboardButton("Official", url="https://ruet-cover-page.github.io/"), InlineKeyboardButton("Unofficial", callback_data="resources:cover_page:unofficial")],
-    [InlineKeyboardButton("Cancel", callback_data="resources:cancel")]
-])
+
+
+#text data
+resources_g_classroom_code = "All the available classroom code:"
+for x, y in available_g_classroom.items():
+    resources_g_classroom_code += f"{x}:\n```{y}```\n"
 
 
 
 async def admin_button_handler(update:Update, context:ContextTypes) -> None:
-    query = update.callback_query
-    await query.answer()
+    try:
+        query = update.callback_query
+        await query.answer()
 
-    if query.data == "admin:routine_toggle":
-        await query.edit_message_text("Please make sure if you really want to toggle the routine: ", reply_markup=admin_toggle_routine_keyboard)
-    elif query.data == "admin:routine_update":
-        await query.edit_message_text("The Routine image will be updated from the website in the background. There won't be any completion notice.\nIf you want to modify the content of the routine then please go to 'Edit Routine'. Thank you.")
-        t = threading.Thread(target=update_routine)
-        t.start()
-    elif query.data == "admin:toggle_routine:confirm":
-        loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, toggle_routine)
-        await query.edit_message_text("Routine Toggled Successfully.")
-    elif query.data == "admin:notice":
-        await query.edit_message_text("Notice is coming soon...")
-    elif query.data == "admin:cancel":
-        await query.edit_message_text("Request Cancelled.")
+        if query.data == "admin:routine_toggle":
+            await query.edit_message_text("Please make sure if you really want to toggle the routine: ", reply_markup=admin_toggle_routine_keyboard)
+        elif query.data == "admin:routine_update":
+            await query.edit_message_text("The Routine image will be updated from the website in the background. There won't be any completion notice.\nIf you want to modify the content of the routine then please go to 'Edit Routine'. Thank you.")
+            t = threading.Thread(target=update_routine)
+            t.start()
+        elif query.data == "admin:toggle_routine:confirm":
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None, toggle_routine)
+            await query.edit_message_text("Routine Toggled Successfully.")
+        elif query.data == "admin:circulate_routine":
+            print("routine circulation")
+            await circulate_routine(update, context)
+        elif query.data == "admin:circulate_schedule":
+            await query.edit_message_text("Coming Soon")
+        elif query.data == "admin:cancel":
+            await query.edit_message_text("Request Cancelled.")
+    except Exception as e:
+        print(f"Error in admin_button_handler. Error code - {e}")
 
 
 
 async def resources_button_handler(update:Update, context:ContextTypes) -> None:
-    query = update.callback_query
-    await query.answer()
+    try:
+        query = update.callback_query
+        await query.answer()
 
-    if query.data == "resources:drive":
-        await query.edit_message_text("Currently available drive are listed below: ", reply_markup=resources_drive_keyboard)
-    elif query.data == "resources:syllabus":
-        await query.edit_message_text("Official syllabus is from RUET, Unofficial one is created manually from class content.", reply_markup=resources_syllabus_keyboard)
-    elif query.data == "resources:cover_page":
-        await query.edit_message_text("Official is the ruet-cover-page from github, Unofficial is a project of Sec C. You can find your cover page prepared automatically in unofficial section.", reply_markup=resources_cover_page_keyboard)        
-    elif query.data == "resources:cancel":
-        await query.edit_message_text("Request Cancelled.")
+        if query.data == "resources:drive":
+            await query.edit_message_text("Currently available drive are listed below: ", reply_markup=resources_drive_keyboard)
+        elif query.data == "resources:syllabus":
+            await query.edit_message_text("Official syllabus is from RUET, Unofficial one is created manually from class content.", reply_markup=resources_syllabus_keyboard)
+        elif query.data == "resources:syllabus:official":
+            await query.edit_message_text("Available Official syllabuses: ", reply_markup=resources_syllabus_official_keyboard)
+        elif query.data == "resources:syllabus:unofficial":
+            await query.edit_message_text("Avilable Unofficial syllabuses: ", reply_markup=resources_syllabus_unofficial_keyboard)
+        elif query.data == "resources:goolge_classroom_code":
+            await query.edit_message_text(resources_g_classroom_code, parse_mode="MarkdownV2")
+        elif query.data == "resources:cancel":
+            await query.edit_message_text("Request Cancelled.")
+    except Exception as e:
+        print(f"Error in resources_button_handler. Error code - {e}")
 
+        
+async def syllabus_id_handler(update:Update, context:ContextTypes) -> None:
+    try:
+        query = update.callback_query
+        await query.answer()
+        chat_id = update.effective_chat.id
+
+        if query.data.startswith("resources:syllabus:official:"):
+            syllabus_key = query.data.split(":")[-1]
+            syllabus_path = available_syllabus_official[syllabus_key]
+
+            if os.path.exists:
+                await context.bot.send_document(
+                    chat_id = chat_id,
+                    document = open(syllabus_path, "rb"),
+                    caption = f"Here is your syllabus for {syllabus_key}"
+                )
+        elif query.data.startswith("resources:syllabus:official:"):
+            syllabus_key = query.data.split(":")[-1]
+            syllabus_path = available_syllabus_official[syllabus_key]
+
+            if os.path.exists:
+                await context.bot.send_document(
+                    chat_id = chat_id,
+                    document = open(syllabus_path, "rb"),
+                    caption = f"Here is your syllabus for {syllabus_key}"
+                )
+    except Exception as e:
+        print(f"Error in syllabus_id_hadler. Error code - {e}")
 
 async def yt_download_file_id_handler(update: Update, context: ContextTypes) -> None:
-    query = update.callback_query
-    chat_id = update.effective_chat.id
-    await query.answer()
-
-    link = context.user_data.get("yt_link")
-    if not link:
-        await update.effective_message.reply_text("Session Expired. Please try again.")
-        return
-
-    # Tier-to-max-height map (must match get_available_video_formats)
-    TIER_MAX = {"4K": 2160, "1440p": 1440, "1080p": 1080, "720p": 720,
-                "480p": 480, "360p": 360, "240p": 240, "144p": 144}
-
-    raw = query.data.split(":")[-1]  # e.g. "v|1080p" or "a"
-    if raw.startswith("v|"):
-        tier = raw[2:]
-        tier_max = TIER_MAX.get(tier, 720)
-        format_selector = f"best[height<={tier_max}]/bestvideo[height<={tier_max}]+bestaudio/best"
-        label = tier
-    else:
-        format_selector = "bestaudio/best"
-        label = "Audio"
-
-    await query.edit_message_text(f"Format: {label}\nDownload Started...")
-    await download_and_upload(context.bot, chat_id, link, format_selector)
-
-
-
-
-#Conversations
-async def start_yt_downloader(update:Update, context:ContextTypes) -> None:
-    await update.callback_query.answer()
-    await update.callback_query.edit_message_text("Enter the link of the video:", reply_markup=resources_yt_downloader_keyboard)
-    return "recieve_yt_link"
-
-async def receieve_yt_link(update:Update, context:ContextTypes) -> None:
-    link = update.message.text
-
-    if not link.startswith(("http://", "https://")):
-        await update.message.reply_text("Please upload a valid link (with https://).")
-        return "recieve_yt_link"
-    context.user_data["yt_link"] = link
-
-    message = await update.message.reply_text("Fetching all the downloadable formats...")
-
     try:
-        loop = asyncio.get_running_loop()
-        format_map = await loop.run_in_executor(None, get_available_video_formats, link)
-    except Exception as e:
-        print(f"Error fetching formats: {e}")
-        await message.edit_text("❌ Error fetching available formats.")
-        return ConversationHandler.END
+        query = update.callback_query
+        chat_id = update.effective_chat.id
+        await query.answer()
 
-    if not format_map:
-        await message.edit_text("❌ Failed to fetch video formats. Please make sure the link is correct.")
-        return ConversationHandler.END
+        link = context.user_data.get("yt_link")
+        if not link:
+            await update.effective_message.reply_text("Session Expired. Please try again.")
+            return
 
-    formats_keyboard_list = []
-    for label, (fid, size) in format_map.items():
-        # Compact callback: v|TIER_LABEL for video, a for audio
-        # Telegram callback_data limit is 64 bytes - longest: "resources:yt_downloader:download:v|1440p" = 42 bytes
-        if label.startswith("Audio"):
-            cb = "resources:yt_downloader:download:a"
+        # Tier-to-max-height map (must match get_available_video_formats)
+        TIER_MAX = {"4K": 2160, "1440p": 1440, "1080p": 1080, "720p": 720,
+                    "480p": 480, "360p": 360, "240p": 240, "144p": 144}
+
+        raw = query.data.split(":")[-1]  # e.g. "v|1080p" or "a"
+        if raw.startswith("v|"):
+            tier = raw[2:]
+            tier_max = TIER_MAX.get(tier, 720)
+            format_selector = f"best[height<={tier_max}]/bestvideo[height<={tier_max}]+bestaudio/best"
+            label = tier
         else:
-            cb = f"resources:yt_downloader:download:v|{label}"
-        formats_keyboard_list.append([InlineKeyboardButton(f"{label} : {size}", callback_data=cb)])
-    formats_keyboard_list.append([InlineKeyboardButton("Cancel", callback_data="resources:cancel")])
-    formats_keyboard = InlineKeyboardMarkup(formats_keyboard_list)
+            format_selector = "bestaudio/best"
+            label = "Audio"
 
-    await message.edit_text("Available formats to download: ", reply_markup=formats_keyboard)
-    return ConversationHandler.END
+        await query.edit_message_text(f"Format: {label}\nDownload Started...")
+        await download_and_upload(context.bot, chat_id, link, format_selector)
 
-async def cancel_yt_downloader(update: Update, context: ContextTypes) -> int:
-    query = update.callback_query
-    await query.answer()
-    await query.edit_message_text("Request Cancelled.")
-    return ConversationHandler.END
+    except Exception as e:
+        print(f"Error in yt_download_file_id_handler. Error code - {e}")
+
+
+async def circulate_routine(update:Update, context:ContextTypes) -> None:
+    if os.path.exists(user_data_path):
+        with open(user_data_path, "r") as file:
+            user_data = json.load(file)
+    active_users = []
+    for user, data in user_data.items():
+        if data["user_id"] != None:
+            active_users.append(data["user_id"])
+
+    is_even, starting_date = is_even_week()
+    routine_path = routine_path_even_week if is_even else routine_path_odd_week
+
+    path_extension = "routine-even-week" if is_even else "routine-odd-week"
+    routine_keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("Live Routine", url=f"https://ruet-cse-c-routine.vercel.app/{path_extension}/")]
+    ])
+    count = 0
+    message = await update.message.reply_text(f"Please wait...\nThe routine is been sent to {count} person")
+
+    for user_id in active_users:
+        await context.bot.send_photo(
+            chat_id = int(user_id),
+            photo = routine_path,
+            caption = f"This routine is applicable from {starting_date}.",
+            reply_markup = routine_keyboard
+        )
+        count += 1
+        await message.edit_text(f"Please wait...\nThe routine is been sent to {count} person")
+    await message.edit_text(f"The routine is circulated to {len(active_users)} people.")
