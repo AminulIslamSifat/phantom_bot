@@ -4,6 +4,10 @@ import yt_dlp
 import asyncio
 from typing import Dict, Tuple
 from config import tg_client, PHANTOM_BOT_CHANNEL_ID, TMP_DIR, MAX_DOWNLOAD_SIZE_BYTES
+try:
+    from config import YT_COOKIES_FILE  # optional: path to a cookies.txt exported from a logged-in browser
+except ImportError:
+    YT_COOKIES_FILE = None
 from telethon import TelegramClient
 from telethon.tl.types import DocumentAttributeAudio, DocumentAttributeVideo
 
@@ -27,6 +31,8 @@ def get_available_video_formats(link: str) -> Dict[str, Tuple[str, str]]:
     ]
 
     ydl_opts = {'quiet': True, 'no_warnings': True}
+    if YT_COOKIES_FILE:
+        ydl_opts['cookiefile'] = YT_COOKIES_FILE
 
     def fmt_size(bytes_val):
         if not bytes_val:
@@ -40,7 +46,8 @@ def get_available_video_formats(link: str) -> Dict[str, Tuple[str, str]]:
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         try:
             info = ydl.extract_info(link, download=False)
-        except Exception:
+        except Exception as e:
+            print(f"[yt_downloader] extract_info failed for {link}: {e}")
             return {}
 
         formats = info.get('formats', [])
@@ -130,6 +137,8 @@ async def download_and_upload(bot, chat_id: int, link: str, format_id: str):
         'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3'}] if is_audio_only else [],
         'progress_hooks': [dl_hook],
     }
+    if YT_COOKIES_FILE:
+        ydl_opts['cookiefile'] = YT_COOKIES_FILE
 
     file_path = None
     try:
