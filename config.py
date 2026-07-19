@@ -56,7 +56,7 @@ TMP_DIR=".data/tmp/"
 main_keyboard = ReplyKeyboardMarkup([
     [KeyboardButton("Routine"), KeyboardButton("Schedule")],
     [KeyboardButton("Cover Page"), KeyboardButton("Resources")]
-], resize_keyboard=True)
+], resize_keyboard=True, one_time_keyboard=False, is_persistent=True)
 
 cancel_keyboard = InlineKeyboardMarkup([
     [InlineKeyboardButton("Cancel", callback_data="unversal:cancel")]
