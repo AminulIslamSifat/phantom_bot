@@ -69,7 +69,7 @@ async def message_handler(update: Update, context: ContextTypes) -> None:
     command = predefined_commands.get(user_text)
 
     if not command:
-        await update.message.reply_text("No Command Found")
-        return 
+        await update.message.reply_text("Pika Pika", reply_markup=main_keyboard)
+        return
     
     await command(update, context)
