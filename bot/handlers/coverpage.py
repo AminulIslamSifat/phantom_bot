@@ -144,8 +144,8 @@ def _display_date(iso: str) -> str:
 def _build_subject_keyboard(subjects: list[str]) -> InlineKeyboardMarkup:
     """2 subjects per row, then footer."""
     rows = []
-    for i in range(0, len(subjects), 2):
-        chunk = subjects[i : i + 2]
+    for i in range(0, len(subjects), 3):
+        chunk = subjects[i : i + 3]
         rows.append([
             InlineKeyboardButton(s, callback_data=f"coverpage:subject:{s}")
             for s in chunk
