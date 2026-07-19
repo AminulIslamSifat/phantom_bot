@@ -1,6 +1,7 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
-from config import main_keyboard, admin_list, user_data_path
+from config import main_keyboard, user_data_path
+from bot.services.database import db
 import json
 import os
 
@@ -47,7 +48,8 @@ async def help(update:Update, context:ContextTypes) -> None:
 
 async def admin(update:Update, context:ContextTypes) -> None:
     user_id = update.effective_user.id
-    if user_id not in admin_list.values():
+    is_admin = db["admin"].find_one({"user_id": {"$in": [user_id, str(user_id)]}})
+    if not is_admin:
         await update.message.reply_text("Sorry, You are not an admin")
         return
     await update.message.reply_text("Admin Panel: ", reply_markup=admin_keyboard)

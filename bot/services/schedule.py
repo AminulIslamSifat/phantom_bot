@@ -72,7 +72,7 @@ def get_schedule() -> str:
     if not schedules:
         return "✨ No upcoming schedules found!"
         
-    lines = ["📅 *RUET CSE Schedule* 📅\n"]
+    lines = ["*RUET CSE Schedule*\n"]
     
     type_emojis = {
         "CT": "🟣",
@@ -84,14 +84,14 @@ def get_schedule() -> str:
     for s in schedules:
         emoji = type_emojis.get(s["type"], "📌")
         lines.append(f"{emoji} *{s['type']}: {s['subject']}*")
-        lines.append(f"👤 Teacher: {s.get('teacher', 'N/A')}")
         
         date_str = s.get('date') or 'TBD'
         time_str = s.get('time') or 'TBD'
-        lines.append(f"📅 Date: {date_str}{s['countdown']} | 🕐 Time: {time_str}")
+        lines.append(f"Date: {date_str}{s['countdown']}\nTime: {time_str}")
+        lines.append(f"Teacher: {s.get('teacher', 'N/A')}")
         
         if s.get("topic"):
-            lines.append(f"📌 Topic: {s['topic']}")
+            lines.append(f"Topic: {s['topic']}")
         if s.get("syllabus"):
             lines.append(f"📖 Syllabus: {s['syllabus']}")
             
