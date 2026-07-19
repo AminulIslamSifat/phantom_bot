@@ -44,7 +44,7 @@ async def start(update:Update, context: ContextTypes) -> None:
 
 
 async def help(update:Update, context:ContextTypes) -> None:
-    await update.message.reply_text("The Guide on how to use this is given below: ")
+    await update.message.reply_text("The Guide on how to use this is given below: ", reply_markup=help_keyboard)
 
 async def admin(update:Update, context:ContextTypes) -> None:
     user_id = update.effective_user.id
