@@ -433,18 +433,24 @@ async def cp_receive_dates(update: Update, context: ContextTypes) -> int:
 
         await processing_msg.delete()
 
-        await update.message.reply_document(
-            document=open(out_path, "rb"),
-            filename=fname,
-            caption=(
-                f"✅ *Cover Page Ready!*\n\n"
-                f"📘 *Subject:* {subject}\n"
-                f"🔬 *Exp {exp_no}:* {exp_title}\n"
-                f"📅 *Experiment:* {_display_date(exp_date_iso)}\n"
-                f"📬 *Submission:* {_display_date(sub_date_iso)}"
-            ),
-            parse_mode="Markdown",
-        )
+        with open(out_path, "rb") as doc_file:
+            await update.message.reply_document(
+                document=doc_file,
+                filename=fname,
+                caption=(
+                    f"✅ *Cover Page Ready!*\n\n"
+                    f"📘 *Subject:* {subject}\n"
+                    f"🔬 *Exp {exp_no}:* {exp_title}\n"
+                    f"📅 *Experiment:* {_display_date(exp_date_iso)}\n"
+                    f"📬 *Submission:* {_display_date(sub_date_iso)}"
+                ),
+                parse_mode="Markdown",
+            )
+
+        try:
+            os.remove(out_path)
+        except Exception as e:
+            print(f"[coverpage] Clean-up error: {e}")
 
         # Persist to MongoDB
         save_coverpage_record(
