@@ -11,5 +11,7 @@ Requires-Dist: aiohttp>=3.14.1
 Requires-Dist: pymongo[srv]
 Requires-Dist: yt-dlp
 Requires-Dist: telethon==1.44.0
+Requires-Dist: fpdf2>=2.8.7
+Requires-Dist: pillow>=12.3.0
 Provides-Extra: dev
 Requires-Dist: pytest<9,>=8; extra == "dev"

@@ -72,6 +72,9 @@ async def admin_button_handler(update:Update, context:ContextTypes) -> None:
         elif query.data == "admin:circulate_schedule":
             print("schedule circulation")
             await circulate_schedule(update, context)
+        elif query.data == "admin:show_user":
+            user_list_text = list_user()
+            await query.edit_message_text(user_list_text)
         elif query.data == "admin:cancel":
             await query.edit_message_text("Request Cancelled.")
     except Exception as e:
@@ -161,3 +164,21 @@ async def yt_download_file_id_handler(update: Update, context: ContextTypes) -> 
 
     except Exception as e:
         print(f"Error in yt_download_file_id_handler. Error code - {e}")
+
+
+
+def list_user():
+    if os.path.exists(user_data_path):
+        with open(user_data_path, "r") as file:
+            user_data = json.load(file)
+    user_list_text = ""
+    for user, data in user_data.items():
+        if data["user_id"] != None:
+            user_list_text += f"{user} : {data['user_id']}\n"
+    
+    return user_list_text
+    
+    
+
+    
+     

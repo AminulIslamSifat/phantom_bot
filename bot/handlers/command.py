@@ -9,10 +9,19 @@ import os
 admin_keyboard = InlineKeyboardMarkup([
     [InlineKeyboardButton("Update Routine", callback_data="admin:routine_update"), InlineKeyboardButton("Edit Routine", url="https://ruet-cse-c-routine.vercel.app/admin/")],
     [InlineKeyboardButton("Toggle Routine", callback_data="admin:routine_toggle"), InlineKeyboardButton("Circualte Routine", callback_data="admin:routine_circulate")],
-    [InlineKeyboardButton("Edit Schedule", url="https://ruet-cse-schedule.vercel.app/"), InlineKeyboardButton("Circulate Schedule", callback_data="admin:schedule_circulate")],
+    [InlineKeyboardButton("Edit Schedule", url="https://ruet-cse-schedule.vercel.app/schedule"), InlineKeyboardButton("Circulate Schedule", callback_data="admin:schedule_circulate")],
+    [InlineKeyboardButton("Edit Subject Teacher Data", url="https://ruet-cse-schedule.vercel.app/teachers")],
+    [InlineKeyboardButton("Edit experiment/Assingment detail", url="https://ruet-cse-schedule.vercel.app/experiments")],
     [InlineKeyboardButton("Publish Notice", callback_data="admin:notice"), InlineKeyboardButton("Show User", callback_data="admin:show_user")],
     [InlineKeyboardButton("Cancel", callback_data="admin:cancel")]
 ])
+
+help_keyboard = InlineKeyboardMarkup([
+    [InlineKeyboardButton("Readme", url="")],
+    [InlineKeyboardButton("User Guide", url="")],
+    [InlineKeyboardButton("Developer Guide", url="")]
+])
+
 register_keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("Register", callback_data="register")]])
 
 

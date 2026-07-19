@@ -18,7 +18,7 @@ def load_users():
         user_collections = []
         data =  {}
 
-        #Filetering all the additional collections from user
+        #Filtering all the additional collections from user
         for x in collections:
             if x == "2400000":
                 continue
@@ -30,12 +30,13 @@ def load_users():
 
         for user in user_collections:
             user_data = db[user].find_one({"roll" : user})
-
-            data[user] = {
-                "name": user_data["name"],
-                "section": user_data["section"],
-                "user_id": user_data["user_id"]
-            }
+            if user_data:
+                data[user] = {
+                    "name": user_data.get("name"),
+                    "section": user_data.get("section"),
+                    "user_id": user_data.get("user_id"),
+                    "teacher_choices": user_data.get("teacher_choices", {})
+                }
         
         with open(user_data_path, "w") as file:
             json.dump(data, file, indent=4)
@@ -71,7 +72,8 @@ def load_data():
     load_teacher_data()
     load_users()
     load_routine_odd_even_sequence()
-    sync_subject_details()
+    load_subject_teachers()
+    load_subject_experiments()
 
 def load_teacher_data():
     """Fetch teacher list from live API and cache locally as JSON."""
@@ -157,62 +159,103 @@ def get_coverpage_dates_by_group(subject: str, exp_no: str) -> dict:
     return result
 
 
-# ─── Subject Details cache ───────────────────────────────────────────────────
+# ─── Subject Teachers & Experiments ───────────────────────────────────────────
 
-def sync_subject_details() -> None:
-    """Sync coverpage/config/subject_detail.json to MongoDB subject_detail collection."""
+def load_subject_teachers() -> None:
+    """Load subject_teachers from MongoDB and cache to .data/subject_teachers.json."""
+    os.makedirs(".data/", exist_ok=True)
     try:
-        base_dir = Path(__file__).parent.parent.parent
-        json_path = base_dir / "coverpage" / "config" / "subject_detail.json"
-        if not json_path.exists():
-            print(f"[db] subject_detail.json not found at {json_path}")
-            return
+        col = db["subject_teachers"]
+        # If collection is empty, seed it from local file
+        if col.count_documents({}) == 0:
+            local_path = Path(".data/subject_teachers.json")
+            if local_path.exists():
+                with open(local_path, "r", encoding="utf-8") as f:
+                    raw_data = json.load(f)
+                docs = []
+                for key, val in raw_data.items():
+                    normalized = re.sub(r"[\s\-]+", "", key).upper()
+                    docs.append({
+                        "subject": key,
+                        "normalized": normalized,
+                        "title": val.get("title", ""),
+                        "type": val.get("type", "sessional"),
+                        "1": val.get("1", {}),
+                        "2": val.get("2", {})
+                    })
+                if docs:
+                    col.insert_many(docs)
+                    print(f"[db] Seeded subject_teachers with {len(docs)} documents.")
 
-        with open(json_path, "r", encoding="utf-8") as f:
-            raw_data = json.load(f)
-
-        col = db["subject_detail"]
-        for key, val in raw_data.items():
-            if key == "_detail":
-                continue
-
-            normalized = re.sub(r"[\s\-]+", "", key).upper()
-            subject_type = val.get("type", "sessional")
-
-            # Parse experiments (all keys that are digit keys)
-            experiments = {}
-            for exp_key, exp_val in val.items():
-                if exp_key.isdigit():
-                    experiments[str(exp_key)] = exp_val
-
-            existing = col.find_one({"normalized": normalized})
-            if not existing:
-                col.insert_one({
-                    "subject": key,
-                    "normalized": normalized,
-                    "type": subject_type,
-                    "experiments": experiments
-                })
-            else:
-                db_exps = existing.get("experiments", {})
-                # local JSON initial files merge with DB
-                updated_exps = {**experiments, **db_exps}
-                col.update_one(
-                    {"normalized": normalized},
-                    {"$set": {"type": subject_type, "experiments": updated_exps}}
-                )
-        print("[db] Subject details cache synced.")
+        # Read all documents and write to .data/subject_teachers.json
+        data = {}
+        for doc in col.find():
+            subject = doc["subject"]
+            data[subject] = {
+                "title": doc.get("title", ""),
+                "type": doc.get("type", "sessional"),
+                "1": doc.get("1", {}),
+                "2": doc.get("2", {})
+            }
+        with open(".data/subject_teachers.json", "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=4)
+        print("[db] Loaded subject_teachers from MongoDB and cached locally.")
     except Exception as e:
-        print(f"[db] Error syncing subject details: {e}")
+        print(f"[db] Error loading subject_teachers: {e}")
 
 
-def get_subject_detail(subject_name: str) -> dict | None:
-    """Get subject detail from MongoDB using normalized subject name."""
+def load_subject_experiments() -> None:
+    """Load subject_experiments from MongoDB and cache to .data/subject_experiments.json."""
+    os.makedirs(".data/", exist_ok=True)
+    try:
+        col = db["subject_experiments"]
+        # If collection is empty, seed it from local file
+        if col.count_documents({}) == 0:
+            local_path = Path(".data/subject_experiments.json")
+            if local_path.exists():
+                with open(local_path, "r", encoding="utf-8") as f:
+                    raw_data = json.load(f)
+                docs = []
+                for key, val in raw_data.items():
+                    if key == "_detail":
+                        continue
+                    normalized = re.sub(r"[\s\-]+", "", key).upper()
+                    experiments = {}
+                    for exp_key, exp_val in val.items():
+                        if exp_key.isdigit():
+                            experiments[str(exp_key)] = exp_val
+                    docs.append({
+                        "subject": key,
+                        "normalized": normalized,
+                        "type": val.get("type", "sessional"),
+                        "experiments": experiments
+                    })
+                if docs:
+                    col.insert_many(docs)
+                    print(f"[db] Seeded subject_experiments with {len(docs)} documents.")
+
+        # Read all documents and write to .data/subject_experiments.json
+        data = {}
+        for doc in col.find():
+            subject = doc["subject"]
+            data[subject] = {
+                "type": doc.get("type", "sessional"),
+                "experiments": doc.get("experiments", {})
+            }
+        with open(".data/subject_experiments.json", "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=4)
+        print("[db] Loaded subject_experiments from MongoDB and cached locally.")
+    except Exception as e:
+        print(f"[db] Error loading subject_experiments: {e}")
+
+
+def get_subject_experiments(subject_name: str) -> dict | None:
+    """Get subject experiments from MongoDB using normalized subject name."""
     try:
         normalized = re.sub(r"[\s\-]+", "", subject_name).upper()
-        return db["subject_detail"].find_one({"normalized": normalized})
+        return db["subject_experiments"].find_one({"normalized": normalized})
     except Exception as e:
-        print(f"[db] Error fetching subject detail: {e}")
+        print(f"[db] Error fetching subject experiments: {e}")
         return None
 
 
@@ -220,9 +263,9 @@ def add_experiment_to_subject(subject_name: str, exp_no: str, title: str, exp_ty
     """Add a manual experiment to a subject in MongoDB, if it doesn't already exist."""
     try:
         normalized = re.sub(r"[\s\-]+", "", subject_name).upper()
-        doc = db["subject_detail"].find_one({"normalized": normalized})
+        doc = db["subject_experiments"].find_one({"normalized": normalized})
         if not doc:
-            db["subject_detail"].insert_one({
+            db["subject_experiments"].insert_one({
                 "subject": subject_name,
                 "normalized": normalized,
                 "type": "sessional" if exp_type == "Lab Report" else "theory",
@@ -241,11 +284,34 @@ def add_experiment_to_subject(subject_name: str, exp_no: str, title: str, exp_ty
                 "type": exp_type,
                 "title": title
             }
-            db["subject_detail"].update_one(
+            db["subject_experiments"].update_one(
                 {"normalized": normalized},
                 {"$set": {"experiments": experiments}}
             )
             print(f"[db] Added manual experiment {exp_no} to {subject_name}")
     except Exception as e:
         print(f"[db] Error adding experiment to subject: {e}")
+
+
+def save_user_teacher_choice(roll: str, subject: str, teacher_key: str) -> None:
+    """Save user teacher choice to MongoDB collection named after roll, and update local cache."""
+    try:
+        # Update MongoDB
+        db[str(roll)].update_one(
+            {"roll": str(roll)},
+            {"$set": {f"teacher_choices.{subject}": teacher_key}}
+        )
+        # Update local user data json
+        if os.path.exists(user_data_path):
+            with open(user_data_path, "r", encoding="utf-8") as f:
+                users = json.load(f)
+            if str(roll) in users:
+                if "teacher_choices" not in users[str(roll)]:
+                    users[str(roll)]["teacher_choices"] = {}
+                users[str(roll)]["teacher_choices"][subject] = teacher_key
+                with open(user_data_path, "w", encoding="utf-8") as f:
+                    json.dump(users, f, indent=4)
+        print(f"[db] Saved teacher choice '{teacher_key}' for subject '{subject}' on roll {roll}.")
+    except Exception as e:
+        print(f"[db] Error saving user teacher choice: {e}")
 

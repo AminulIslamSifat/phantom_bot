@@ -16,6 +16,8 @@ dependencies = [
 	"pymongo[srv]",
 	"yt-dlp",
 	"telethon==1.44.0",
+	"fpdf2>=2.8.7",
+	"pillow>=12.3.0",
 ]
 
 [project.optional-dependencies]

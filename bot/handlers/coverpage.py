@@ -22,16 +22,22 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
 
 from config import user_data_path
-from bot.services.database import save_coverpage_record, get_subject_detail, add_experiment_to_subject
+from bot.services.database import (
+    save_coverpage_record, 
+    get_subject_experiments, 
+    add_experiment_to_subject,
+    save_user_teacher_choice
+)
 
 # ─── Paths ────────────────────────────────────────────────────────────────────
 _BASE = Path(__file__).parent.parent.parent  # project root
-TEACHER_SUBJECT_PATH = _BASE / ".data" / "teacher_subject.json"
+TEACHER_SUBJECT_PATH = _BASE / ".data" / "subject_teachers.json"
 COVERPAGE_OUTPUT_DIR = _BASE / "coverpage" / "generated_covers"
 OFFICIAL_URL = "https://ruet-cover-page.github.io/"
 
 # ─── Conversation states ───────────────────────────────────────────────────────
 SELECT_SUBJECT    = "cp_select_subject"
+SELECT_TEACHER    = "cp_select_teacher"
 SELECT_EXPERIMENT = "cp_select_experiment"
 MANUAL_EXP_INPUT  = "cp_manual_exp_input"
 ENTER_DATES       = "cp_enter_dates"
@@ -88,15 +94,15 @@ def _get_student_group(roll: str) -> str:
         return "1"                        # safe default
 
 
-def _get_teacher(subject: str, roll: str) -> dict:
+def _get_teacher(subject: str, roll: str, teacher_key: str = None) -> dict:
     """
-    Return teacher dict for a subject based on student's roll group.
-    Group '1' (1st 30 of every 60) → teacher '1'
-    Group '2' (2nd 30 of every 60) → teacher '2'
+    Return teacher dict for a subject. If teacher_key is provided, use it directly.
+    Otherwise, fall back to student's roll group.
     """
     teacher_data = _load_json(TEACHER_SUBJECT_PATH)
     teachers_for_subject = teacher_data.get(subject, {})
-    teacher_key = _get_student_group(roll)
+    if not teacher_key:
+        teacher_key = _get_student_group(roll)
     return teachers_for_subject.get(teacher_key) or teachers_for_subject.get("1", {})
 
 
@@ -189,25 +195,25 @@ async def cover_page_start(update: Update, context: ContextTypes) -> str:
 
 # ─── Step 1 : Subject selected ────────────────────────────────────────────────
 
-async def cp_subject_selected(update: Update, context: ContextTypes) -> str:
-    query = update.callback_query
-    await query.answer()
-
-    subject = query.data.removeprefix("coverpage:subject:")
-    context.user_data["cp_subject"] = subject
-
+async def _transition_to_experiment_step(query, context: ContextTypes, subject: str) -> str:
     # Load experiment data from MongoDB
-    subject_doc = get_subject_detail(subject)
+    subject_doc = get_subject_experiments(subject)
     experiments = {}
-    subject_type = "sessional"
+    
+    # We also check the subject type from subject_teachers.json to be consistent
+    subject_teachers = _load_json(TEACHER_SUBJECT_PATH)
+    subject_info = subject_teachers.get(subject, {})
+    subject_type = subject_info.get("type", "sessional")
+    
     if subject_doc:
         experiments = subject_doc.get("experiments", {})
-        subject_type = subject_doc.get("type", "sessional")
+        # If type isn't in subject_experiments, use type from subject_teachers
+        subject_type = subject_doc.get("type", subject_type)
 
     context.user_data["cp_subject_type"] = subject_type
+    context.user_data["cp_experiments"] = experiments
 
     if experiments:
-        context.user_data["cp_experiments"] = experiments  # cache for later lookup
         await query.edit_message_text(
             f"📘 *{subject}*\n\nSelect an experiment or enter manually:",
             parse_mode="Markdown",
@@ -216,15 +222,90 @@ async def cp_subject_selected(update: Update, context: ContextTypes) -> str:
         return SELECT_EXPERIMENT
     else:
         # No experiment data — skip straight to manual input
+        exp_label = "assignment" if subject_type == "theory" else "experiment"
         await query.edit_message_text(
             f"📘 *{subject}*\n\n"
-            "No experiment list found for this subject.\n"
-            "Please type the experiment details in this format:\n\n"
-            "`exp_no : Experiment Title`",
+            f"No {exp_label} list found for this subject.\n"
+            f"Please type the {exp_label} details in this format:\n\n"
+            f"`exp_no : Title`",
             parse_mode="Markdown",
             reply_markup=_footer_keyboard(),
         )
         return MANUAL_EXP_INPUT
+
+
+async def cp_subject_selected(update: Update, context: ContextTypes) -> str:
+    query = update.callback_query
+    await query.answer()
+
+    subject = query.data.removeprefix("coverpage:subject:")
+    context.user_data["cp_subject"] = subject
+
+    # Get student info to check saved choice
+    roll, student = _get_student_by_user_id(query.from_user.id)
+    if not roll:
+        await query.edit_message_text(
+            "❌ Could not find your student data. Please register first with /start.",
+            reply_markup=_footer_keyboard(),
+        )
+        return ConversationHandler.END
+
+    # Load subject info
+    subject_teachers = _load_json(TEACHER_SUBJECT_PATH)
+    subject_info = subject_teachers.get(subject, {})
+    subject_type = subject_info.get("type", "sessional")
+    context.user_data["cp_subject_type"] = subject_type
+
+    # Check for saved teacher choice
+    teacher_choices = student.get("teacher_choices", {})
+    saved_teacher_key = teacher_choices.get(subject)
+    if saved_teacher_key:
+        context.user_data["cp_teacher_key"] = saved_teacher_key
+        # Already chosen, proceed to experiments
+        return await _transition_to_experiment_step(query, context, subject)
+    else:
+        # Prompt user to select teacher
+        t1_name = subject_info.get("1", {}).get("name", "Teacher 1")
+        t2_name = subject_info.get("2", {}).get("name", "Teacher 2")
+
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton(t1_name, callback_data="coverpage:teacher:1")],
+            [InlineKeyboardButton(t2_name, callback_data="coverpage:teacher:2")],
+            [
+                InlineKeyboardButton("🌐 Official", url=OFFICIAL_URL),
+                InlineKeyboardButton("❌ Cancel", callback_data="coverpage:cancel"),
+            ]
+        ])
+        await query.edit_message_text(
+            f"🧑‍🏫 *Select Teacher for {subject}*\n\nPlease choose your course teacher:",
+            parse_mode="Markdown",
+            reply_markup=keyboard,
+        )
+        return SELECT_TEACHER
+
+
+async def cp_teacher_selected(update: Update, context: ContextTypes) -> str:
+    query = update.callback_query
+    await query.answer()
+
+    teacher_key = query.data.removeprefix("coverpage:teacher:")
+    subject = context.user_data.get("cp_subject", "")
+
+    roll, student = _get_student_by_user_id(query.from_user.id)
+    if not roll:
+        await query.edit_message_text(
+            "❌ Could not find your student data. Please register first with /start.",
+            reply_markup=_footer_keyboard(),
+        )
+        return ConversationHandler.END
+
+    context.user_data["cp_teacher_key"] = teacher_key
+
+    # Save the choice to MongoDB and local cache
+    save_user_teacher_choice(roll, subject, teacher_key)
+
+    # Proceed to experiment selection/entry
+    return await _transition_to_experiment_step(query, context, subject)
 
 
 # ─── Step 2a : Experiment button clicked ──────────────────────────────────────
@@ -296,50 +377,198 @@ async def cp_receive_manual_exp(update: Update, context: ContextTypes) -> str:
 
 # ─── Date asking helpers ───────────────────────────────────────────────────────
 
-async def _build_date_prompt(context: ContextTypes, user_id: int) -> str:
-    """Build the date prompt, injecting per-group history hints if available."""
-    roll, _student = _get_student_by_user_id(user_id)
+async def _build_date_ui(context: ContextTypes, user_id: int) -> tuple[str, InlineKeyboardMarkup]:
+    """
+    Build the date prompt text + keyboard.
+    Previously-used date pairs are rendered as quick-select buttons so the
+    user can tap instead of typing.
+    Returns (prompt_text, keyboard).
+    """
     subject = context.user_data.get("cp_subject", "")
     exp_no  = context.user_data.get("cp_exp_no", "")
 
-    hint_text = ""
+    rows = []
     if subject and exp_no:
         from bot.services.database import get_coverpage_dates_by_group
         records = get_coverpage_dates_by_group(subject, exp_no)
-        lines = []
         for group_key, label in (("1", "1st 30"), ("2", "2nd 30")):
             rec = records.get(group_key)
             if rec:
                 exp_d = _display_date(rec["date_of_experiment"])
                 sub_d = _display_date(rec["date_of_submission"])
-                lines.append(f"`{label}: {exp_d}, {sub_d}`")
-        if lines:
-            hint_text = "\n\n📌 *Previously used dates:*\n" + "\n".join(lines)
+                # Store ISO dates in callback_data so handler can parse them
+                cb = f"coverpage:dates:{rec['date_of_experiment']},{rec['date_of_submission']}"
+                rows.append([
+                    InlineKeyboardButton(
+                        f"📌 {label}: {exp_d}, {sub_d}",
+                        callback_data=cb,
+                    )
+                ])
 
-    return (
+    rows.append([
+        InlineKeyboardButton("🌐 Official", url=OFFICIAL_URL),
+        InlineKeyboardButton("❌ Cancel",   callback_data="coverpage:cancel"),
+    ])
+
+    hint_text = "\n\n💡 _Tap a date button above to use it, or type new dates below._" if rows[:-1] else ""
+    prompt = (
         f"📅 *Enter Dates*{hint_text}\n\n"
         "Send both dates in this format:\n"
         "`dd-mm-yyyy, dd-mm-yyyy`\n\n"
         "_First date = Experimentation date_\n"
         "_Second date = Submission date_"
     )
+    return prompt, InlineKeyboardMarkup(rows)
 
 
 async def _ask_for_dates(query, context: ContextTypes, *, edit: bool) -> str:
     """Used when coming from a callback query (edit the existing message)."""
-    user_id = query.from_user.id
-    prompt  = await _build_date_prompt(context, user_id)
+    prompt, keyboard = await _build_date_ui(context, query.from_user.id)
     if edit:
-        await query.edit_message_text(prompt, parse_mode="Markdown", reply_markup=_footer_keyboard())
+        await query.edit_message_text(prompt, parse_mode="Markdown", reply_markup=keyboard)
     return ENTER_DATES
 
 
 async def _ask_for_dates_message(update: Update, context: ContextTypes) -> str:
     """Used when coming from a text message (send new message)."""
-    user_id = update.effective_user.id
-    prompt  = await _build_date_prompt(context, user_id)
-    await update.message.reply_text(prompt, parse_mode="Markdown", reply_markup=_footer_keyboard())
+    prompt, keyboard = await _build_date_ui(context, update.effective_user.id)
+    await update.message.reply_text(prompt, parse_mode="Markdown", reply_markup=keyboard)
     return ENTER_DATES
+
+
+# ─── Quick-select date button handler ─────────────────────────────────────────
+
+async def cp_dates_quick_select(update: Update, context: ContextTypes) -> int:
+    """
+    Called when the user taps one of the previously-used date buttons.
+    Extracts ISO dates from callback_data and delegates to the shared
+    date-processing logic (same as cp_receive_dates but without a text message).
+    """
+    query = update.callback_query
+    await query.answer()
+
+    # callback_data format: "coverpage:dates:YYYY-MM-DD,YYYY-MM-DD"
+    payload = query.data.removeprefix("coverpage:dates:")
+    parts   = payload.split(",", 1)
+    if len(parts) != 2:
+        await query.answer("⚠️ Bad date data, please type manually.", show_alert=True)
+        return ENTER_DATES
+
+    exp_date_iso, sub_date_iso = parts[0].strip(), parts[1].strip()
+
+    # ── reuse the full generation pipeline ────────────────────────────────────
+    user_id = query.from_user.id
+    roll, student = _get_student_by_user_id(user_id)
+    if not roll:
+        await query.edit_message_text(
+            "❌ Could not find your student data. Please register first with /start.",
+            reply_markup=_footer_keyboard(),
+        )
+        return ConversationHandler.END
+
+    subject   = context.user_data["cp_subject"]
+    exp_no    = context.user_data["cp_exp_no"]
+    exp_title = context.user_data["cp_exp_title"]
+    exp_type  = context.user_data.get("cp_exp_type", "Lab Report")
+    section   = student.get("section", "")
+    name      = student.get("name", "")
+    group     = _get_student_group(roll)
+
+    teacher_key = context.user_data.get("cp_teacher_key")
+    teacher     = _get_teacher(subject, roll, teacher_key)
+
+    parts_sub = subject.split()
+    dept_short = parts_sub[0] if parts_sub else "CSE"
+    course_no  = f"{parts_sub[0]} - {parts_sub[1]}" if len(parts_sub) > 1 else subject
+
+    subject_teachers = _load_json(TEACHER_SUBJECT_PATH)
+    subject_info     = subject_teachers.get(subject, {})
+    course_title     = subject_info.get("title", subject)
+
+    dept_map = {
+        "CSE":  "Computer Science & Engineering",
+        "EEE":  "Electrical & Electronic Engineering",
+        "MATH": "Mathematics",
+        "HUM":  "Humanities",
+    }
+    department = teacher.get("department") or dept_map.get(dept_short, "Computer Science & Engineering")
+
+    config = {
+        "department":         department,
+        "type":               exp_type,
+        "courseNo":           course_no,
+        "courseTitle":        course_title,
+        "coverNo":            exp_no,
+        "coverTitle":         exp_title,
+        "teacherName":        teacher.get("name", ""),
+        "teacherDesignation": teacher.get("designation", ""),
+        "teacherDepartment":  teacher.get("department", ""),
+        "dateOfExperiment":   exp_date_iso,
+        "dateOfSubmission":   sub_date_iso,
+        "watermark":          False,
+        "courseCode":         False,
+        "studentSeries":      False,
+        "studentSession":     True,
+        "assessmentTable":    False,
+        "students": [
+            {
+                "id":      roll,
+                "name":    name,
+                "section": section,
+            }
+        ],
+    }
+
+    await query.edit_message_text("⏳ Generating your cover page...")
+
+    try:
+        from coverpage.generate import generate_from_dict
+
+        COVERPAGE_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        safe_name = name.replace(" ", "_")
+        fname    = f"{roll}_{safe_name}_Exp{exp_no}_{subject.replace(' ', '_')}.pdf"
+        out_path = str(COVERPAGE_OUTPUT_DIR / fname)
+
+        import asyncio as _asyncio
+        loop = _asyncio.get_running_loop()
+        await loop.run_in_executor(None, generate_from_dict, config, out_path)
+
+        await query.delete_message()
+
+        with open(out_path, "rb") as doc_file:
+            await query.message.reply_document(
+                document=doc_file,
+                filename=fname,
+                caption=(
+                    f"✅ *Cover Page Ready!*\n\n"
+                    f"📘 *Subject:* {subject}\n"
+                    f"🔬 *Exp {exp_no}:* {exp_title}\n"
+                    f"📅 *Experiment:* {_display_date(exp_date_iso)}\n"
+                    f"📬 *Submission:* {_display_date(sub_date_iso)}"
+                ),
+                parse_mode="Markdown",
+            )
+
+        try:
+            os.remove(out_path)
+        except Exception as e:
+            print(f"[coverpage] Clean-up error: {e}")
+
+        save_coverpage_record(
+            user_id=user_id,
+            roll=roll,
+            subject=subject,
+            exp_no=exp_no,
+            group=group,
+            date_of_experiment=exp_date_iso,
+            date_of_submission=sub_date_iso,
+        )
+
+    except Exception as e:
+        print(f"[coverpage] Quick-select generation error: {e}")
+        await query.message.reply_text(f"❌ Failed to generate cover page.\nError: {e}")
+
+    return ConversationHandler.END
 
 
 # ─── Step 3 : Receive dates & generate PDF ───────────────────────────────────
@@ -376,12 +605,20 @@ async def cp_receive_dates(update: Update, context: ContextTypes) -> int:
     name       = student.get("name", "")
     group      = _get_student_group(roll)
 
-    teacher = _get_teacher(subject, roll)
+    teacher_key = context.user_data.get("cp_teacher_key")
+    teacher = _get_teacher(subject, roll, teacher_key)
 
-    # Derive course details from subject key (e.g. "EEE 2152" → dept EEE, no "2152")
+    # Derive course details from subject key (e.g. "EEE 2152" → "EEE - 2152")
     parts = subject.split()
     dept_short = parts[0] if parts else "CSE"
-    course_no  = parts[-1] if len(parts) > 1 else subject
+    if len(parts) > 1:
+        course_no = f"{parts[0]} - {parts[1]}"
+    else:
+        course_no = subject
+
+    subject_teachers = _load_json(TEACHER_SUBJECT_PATH)
+    subject_info = subject_teachers.get(subject, {})
+    course_title = subject_info.get("title", subject)
 
     dept_map = {
         "CSE":  "Computer Science & Engineering",
@@ -395,7 +632,7 @@ async def cp_receive_dates(update: Update, context: ContextTypes) -> int:
         "department":         department,
         "type":               exp_type,
         "courseNo":           course_no,
-        "courseTitle":        subject,
+        "courseTitle":        course_title,
         "coverNo":            exp_no,
         "coverTitle":         exp_title,
         "teacherName":        teacher.get("name", ""),

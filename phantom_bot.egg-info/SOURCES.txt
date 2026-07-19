@@ -6,6 +6,8 @@ bot/bot.py
 bot/main.py
 bot/handlers/__init__.py
 bot/handlers/command.py
+bot/handlers/conversation.py
+bot/handlers/coverpage.py
 bot/handlers/inline_button.py
 bot/handlers/message.py
 bot/scripts/__init__.py

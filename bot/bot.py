@@ -29,12 +29,15 @@ from bot.handlers.conversation import(
 from bot.handlers.coverpage import (
     cover_page_start,
     cp_subject_selected,
+    cp_teacher_selected,
     cp_experiment_selected,
     cp_experiment_manual_prompt,
     cp_receive_manual_exp,
     cp_receive_dates,
+    cp_dates_quick_select,
     cp_cancel,
     SELECT_SUBJECT,
+    SELECT_TEACHER,
     SELECT_EXPERIMENT,
     MANUAL_EXP_INPUT,
     ENTER_DATES,
@@ -95,6 +98,10 @@ app.add_handler(ConversationHandler(
             CallbackQueryHandler(cp_subject_selected, pattern="^coverpage:subject:"),
             CallbackQueryHandler(cp_cancel, pattern="^coverpage:cancel$"),
         ],
+        SELECT_TEACHER: [
+            CallbackQueryHandler(cp_teacher_selected, pattern="^coverpage:teacher:"),
+            CallbackQueryHandler(cp_cancel, pattern="^coverpage:cancel$"),
+        ],
         SELECT_EXPERIMENT: [
             CallbackQueryHandler(cp_experiment_selected, pattern="^coverpage:exp:(?!manual$)"),
             CallbackQueryHandler(cp_experiment_manual_prompt, pattern="^coverpage:exp:manual$"),
@@ -105,6 +112,7 @@ app.add_handler(ConversationHandler(
             CallbackQueryHandler(cp_cancel, pattern="^coverpage:cancel$"),
         ],
         ENTER_DATES: [
+            CallbackQueryHandler(cp_dates_quick_select, pattern="^coverpage:dates:"),
             MessageHandler(filters.TEXT & ~filters.COMMAND, cp_receive_dates),
             CallbackQueryHandler(cp_cancel, pattern="^coverpage:cancel$"),
         ],
