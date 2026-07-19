@@ -14,8 +14,8 @@ IS_LOCAL = os.environ["IS_LOCAL"]
 TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN_TEST"] if IS_LOCAL=="True" else os.environ["TELEGRAM_BOT_TOKEN"]
 SCREENSHOT_API = os.environ["SCREENSHOT_API"]
 USE_WEBHOOK =  os.environ["USE_WEBHOOK"]
-ROUTINE_URL_ODD_WEEK = "https://ruet-cse-c-routine.vercel.app/routine-odd-week/"
-ROUTINE_URL_EVEN_WEEK = "https://ruet-cse-c-routine.vercel.app/routine-even-week/"
+ROUTINE_URL_ODD_WEEK = "https://ruet-cse-liart.vercel.app/routine/odd"
+ROUTINE_URL_EVEN_WEEK = "https://ruet-cse-liart.vercel.app/routine/even"
 routine_path_odd_week = "resources/routine/routine_odd_week.png"
 routine_path_even_week = "resources/routine/routine_even_week.png"
 syllabus_official_folder = "resources/syllabus/official/"
@@ -26,8 +26,8 @@ available_drive = {
     "2-1": "https://drive.google.com/drive/folders/1zxDdCdFiquVKO86oOLXKxMsSCJalHld_"
 }
 available_g_classroom = {
-    "CSE 2101" : "xxxx",
-    "CSE 2102" : "yyyy"
+    "CSE 2103 and CSE 2104" : "https://classroom.google.com/c/Nzk4Mjc1MzIzNTc1?cjc=b7h3fiee",
+    "CSE 2101 and CSE 2102" : "https://classroom.google.com/c/ODY4MjA2MDM2NDUw?cjc=ezytfy3v"
 }
 available_syllabus_official = {}
 available_syllabus_unofficial = {}

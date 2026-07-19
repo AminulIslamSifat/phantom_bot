@@ -115,17 +115,17 @@ async def syllabus_id_handler(update:Update, context:ContextTypes) -> None:
             syllabus_key = query.data.split(":")[-1]
             syllabus_path = available_syllabus_official[syllabus_key]
 
-            if os.path.exists:
+            if os.path.exists(syllabus_path):
                 await context.bot.send_document(
                     chat_id = chat_id,
                     document = open(syllabus_path, "rb"),
                     caption = f"Here is your syllabus for {syllabus_key}"
                 )
-        elif query.data.startswith("resources:syllabus:official:"):
+        elif query.data.startswith("resources:syllabus:unofficial:"):
             syllabus_key = query.data.split(":")[-1]
-            syllabus_path = available_syllabus_official[syllabus_key]
+            syllabus_path = available_syllabus_unofficial[syllabus_key]
 
-            if os.path.exists:
+            if os.path.exists(syllabus_path):
                 await context.bot.send_document(
                     chat_id = chat_id,
                     document = open(syllabus_path, "rb"),

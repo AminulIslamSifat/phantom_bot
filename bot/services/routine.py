@@ -67,10 +67,11 @@ async def circulate_routine(update:Update, context:ContextTypes) -> None:
 
     path_extension = "routine-even-week" if is_even else "routine-odd-week"
     routine_keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("Live Routine", url=f"https://ruet-cse-c-routine.vercel.app/{path_extension}/")]
+        [InlineKeyboardButton("Live Routine", url=f"https://ruet-cse-liart.vercel.app/routine/{path_extension}/")]
     ])
     count = 0
-    message = await update.message.reply_text(f"Please wait...\nThe routine is been sent to {count} person")
+    msg = update.effective_message
+    message = await msg.reply_text(f"Please wait...\nThe routine is been sent to {count} person")
 
     for user_id in active_users:
         await context.bot.send_photo(
@@ -82,3 +83,4 @@ async def circulate_routine(update:Update, context:ContextTypes) -> None:
         count += 1
         await message.edit_text(f"Please wait...\nThe routine is been sent to {count} person")
     await message.edit_text(f"The routine is circulated to {len(active_users)} people.")
+

@@ -8,7 +8,7 @@ from config import (
 )
 from bot.services.routine import is_even_week
 from bot.services.schedule import get_schedule
-
+from config import ROUTINE_URL_EVEN_WEEK, ROUTINE_URL_ODD_WEEK
 
 resources_keyboard = InlineKeyboardMarkup([
     [InlineKeyboardButton("Drive", callback_data="resources:drive"), InlineKeyboardButton("Syllabus", callback_data="resources:syllabus")],
@@ -28,9 +28,9 @@ async def routine(update, context):
         is_even, starting_date = is_even_week()
         routine_path = routine_path_even_week if is_even else routine_path_odd_week
 
-        path_extension = "routine-even-week" if is_even else "routine-odd-week"
+        routine_url = ROUTINE_URL_EVEN_WEEK if is_even else ROUTINE_URL_ODD_WEEK
         routine_keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("Live Routine", url=f"https://ruet-cse-c-routine.vercel.app/{path_extension}/")]
+            [InlineKeyboardButton("Live Routine", url=routine_url)]
         ])
 
         await context.bot.send_photo(

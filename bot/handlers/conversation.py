@@ -131,7 +131,7 @@ async def recieve_roll(update:Update, context:ContextTypes) -> None:
         await update.message.reply_text("Please enter a valid roll number. Example: 2400000\n\nRoll:")
         return "recieve_roll"
     
-    if roll > 2403180 and roll < 2403001 and roll != 2400000:
+    if not (2403001 <= roll <= 2403180 or roll == 2400000):
         await update.message.reply_text("Sorry, You are not eligible to use this bot.")
         return ConversationHandler.END
     

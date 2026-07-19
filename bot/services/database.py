@@ -61,9 +61,18 @@ def load_routine_odd_even_sequence():
 
 
 def update_mongodb_data(collection, data, database=db):
+    """
+    Upsert a document into `collection`.
+    If `data` contains an 'id' key, it is used as the filter so the document
+    is replaced in-place instead of duplicated on every call.
+    Falls back to plain insert_one for documents without a stable id.
+    """
     try:
         col = db[collection]
-        col.insert_one(data)
+        if "id" in data:
+            col.replace_one({"id": data["id"]}, data, upsert=True)
+        else:
+            col.insert_one(data)
     except Exception as e:
         print(f"Error while updating the mongodb collection data. Error code - {e}")
 
@@ -291,27 +300,3 @@ def add_experiment_to_subject(subject_name: str, exp_no: str, title: str, exp_ty
             print(f"[db] Added manual experiment {exp_no} to {subject_name}")
     except Exception as e:
         print(f"[db] Error adding experiment to subject: {e}")
-
-
-def save_user_teacher_choice(roll: str, subject: str, teacher_key: str) -> None:
-    """Save user teacher choice to MongoDB collection named after roll, and update local cache."""
-    try:
-        # Update MongoDB
-        db[str(roll)].update_one(
-            {"roll": str(roll)},
-            {"$set": {f"teacher_choices.{subject}": teacher_key}}
-        )
-        # Update local user data json
-        if os.path.exists(user_data_path):
-            with open(user_data_path, "r", encoding="utf-8") as f:
-                users = json.load(f)
-            if str(roll) in users:
-                if "teacher_choices" not in users[str(roll)]:
-                    users[str(roll)]["teacher_choices"] = {}
-                users[str(roll)]["teacher_choices"][subject] = teacher_key
-                with open(user_data_path, "w", encoding="utf-8") as f:
-                    json.dump(users, f, indent=4)
-        print(f"[db] Saved teacher choice '{teacher_key}' for subject '{subject}' on roll {roll}.")
-    except Exception as e:
-        print(f"[db] Error saving user teacher choice: {e}")
-

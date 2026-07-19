@@ -8,7 +8,7 @@ Flow:
     → MANUAL_EXP_INPUT : receive typed "exp_no : exp_title"
     → ENTER_DATES      : ask for "dd-mm-yyyy, dd-mm-yyyy"
 
-Every step shows [🌐 Official] [❌ Cancel] side by side at the bottom.
+Every step shows [Official] [Cancel] side by side at the bottom.
 """
 
 import json
@@ -26,7 +26,6 @@ from bot.services.database import (
     save_coverpage_record, 
     get_subject_experiments, 
     add_experiment_to_subject,
-    save_user_teacher_choice
 )
 
 # ─── Paths ────────────────────────────────────────────────────────────────────
@@ -46,8 +45,8 @@ ENTER_DATES       = "cp_enter_dates"
 def _footer_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("🌐 Official", url=OFFICIAL_URL),
-            InlineKeyboardButton("❌ Cancel",   callback_data="coverpage:cancel"),
+            InlineKeyboardButton("Official", url=OFFICIAL_URL),
+            InlineKeyboardButton("Cancel",   callback_data="coverpage:cancel"),
         ]
     ])
 
@@ -152,8 +151,8 @@ def _build_subject_keyboard(subjects: list[str]) -> InlineKeyboardMarkup:
             for s in chunk
         ])
     rows.append([
-        InlineKeyboardButton("🌐 Official", url=OFFICIAL_URL),
-        InlineKeyboardButton("❌ Cancel",   callback_data="coverpage:cancel"),
+        InlineKeyboardButton("Official", url=OFFICIAL_URL),
+        InlineKeyboardButton("Cancel",   callback_data="coverpage:cancel"),
     ])
     return InlineKeyboardMarkup(rows)
 
@@ -170,8 +169,8 @@ def _build_experiment_keyboard(experiments: dict) -> InlineKeyboardMarkup:
         rows.append([InlineKeyboardButton(label, callback_data=f"coverpage:exp:{exp_no}")])
     rows.append([InlineKeyboardButton("✏️ Enter Manually", callback_data="coverpage:exp:manual")])
     rows.append([
-        InlineKeyboardButton("🌐 Official", url=OFFICIAL_URL),
-        InlineKeyboardButton("❌ Cancel",   callback_data="coverpage:cancel"),
+        InlineKeyboardButton("Official", url=OFFICIAL_URL),
+        InlineKeyboardButton("Cancel",   callback_data="coverpage:cancel"),
     ])
     return InlineKeyboardMarkup(rows)
 
@@ -259,29 +258,30 @@ async def cp_subject_selected(update: Update, context: ContextTypes) -> str:
     # Check for saved teacher choice
     teacher_choices = student.get("teacher_choices", {})
     saved_teacher_key = teacher_choices.get(subject)
-    if saved_teacher_key:
-        context.user_data["cp_teacher_key"] = saved_teacher_key
-        # Already chosen, proceed to experiments
-        return await _transition_to_experiment_step(query, context, subject)
-    else:
-        # Prompt user to select teacher
-        t1_name = subject_info.get("1", {}).get("name", "Teacher 1")
-        t2_name = subject_info.get("2", {}).get("name", "Teacher 2")
+    
+    # Prompt user to select teacher
+    t1_name = subject_info.get("1", {}).get("name", "Teacher 1")
+    t2_name = subject_info.get("2", {}).get("name", "Teacher 2")
 
-        keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton(t1_name, callback_data="coverpage:teacher:1")],
-            [InlineKeyboardButton(t2_name, callback_data="coverpage:teacher:2")],
-            [
-                InlineKeyboardButton("🌐 Official", url=OFFICIAL_URL),
-                InlineKeyboardButton("❌ Cancel", callback_data="coverpage:cancel"),
-            ]
-        ])
-        await query.edit_message_text(
-            f"🧑‍🏫 *Select Teacher for {subject}*\n\nPlease choose your course teacher:",
-            parse_mode="Markdown",
-            reply_markup=keyboard,
-        )
-        return SELECT_TEACHER
+    # If both groups share the same teacher, skip the selection step
+    if t1_name.strip().lower() == t2_name.strip().lower():
+        context.user_data["cp_teacher_key"] = "1"
+        return await _transition_to_experiment_step(query, context, subject)
+
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton(t1_name, callback_data="coverpage:teacher:1")],
+        [InlineKeyboardButton(t2_name, callback_data="coverpage:teacher:2")],
+        [
+            InlineKeyboardButton("Official", url=OFFICIAL_URL),
+            InlineKeyboardButton("Cancel", callback_data="coverpage:cancel"),
+        ]
+    ])
+    await query.edit_message_text(
+        f"🧑‍🏫 *Select Teacher for {subject}*\n\nPlease choose your course teacher:",
+        parse_mode="Markdown",
+        reply_markup=keyboard,
+    )
+    return SELECT_TEACHER
 
 
 async def cp_teacher_selected(update: Update, context: ContextTypes) -> str:
@@ -300,9 +300,6 @@ async def cp_teacher_selected(update: Update, context: ContextTypes) -> str:
         return ConversationHandler.END
 
     context.user_data["cp_teacher_key"] = teacher_key
-
-    # Save the choice to MongoDB and local cache
-    save_user_teacher_choice(roll, subject, teacher_key)
 
     # Proceed to experiment selection/entry
     return await _transition_to_experiment_step(query, context, subject)
@@ -400,17 +397,17 @@ async def _build_date_ui(context: ContextTypes, user_id: int) -> tuple[str, Inli
                 cb = f"coverpage:dates:{rec['date_of_experiment']},{rec['date_of_submission']}"
                 rows.append([
                     InlineKeyboardButton(
-                        f"📌 {label}: {exp_d}, {sub_d}",
+                        f"{label}: {exp_d}, {sub_d}",
                         callback_data=cb,
                     )
                 ])
 
     rows.append([
-        InlineKeyboardButton("🌐 Official", url=OFFICIAL_URL),
-        InlineKeyboardButton("❌ Cancel",   callback_data="coverpage:cancel"),
+        InlineKeyboardButton("Official", url=OFFICIAL_URL),
+        InlineKeyboardButton("Cancel",   callback_data="coverpage:cancel"),
     ])
 
-    hint_text = "\n\n💡 _Tap a date button above to use it, or type new dates below._" if rows[:-1] else ""
+    hint_text = "\n\n_Tap a date button above to use it, or type new dates below._" if rows[:-1] else ""
     prompt = (
         f"📅 *Enter Dates*{hint_text}\n\n"
         "Send both dates in this format:\n"
@@ -541,10 +538,10 @@ async def cp_dates_quick_select(update: Update, context: ContextTypes) -> int:
                 filename=fname,
                 caption=(
                     f"✅ *Cover Page Ready!*\n\n"
-                    f"📘 *Subject:* {subject}\n"
-                    f"🔬 *Exp {exp_no}:* {exp_title}\n"
-                    f"📅 *Experiment:* {_display_date(exp_date_iso)}\n"
-                    f"📬 *Submission:* {_display_date(sub_date_iso)}"
+                    f"*Subject:* {subject}\n"
+                    f"*Exp {exp_no}:* {exp_title}\n"
+                    f"*Experiment:* {_display_date(exp_date_iso)}\n"
+                    f"*Submission:* {_display_date(sub_date_iso)}"
                 ),
                 parse_mode="Markdown",
             )
@@ -676,10 +673,10 @@ async def cp_receive_dates(update: Update, context: ContextTypes) -> int:
                 filename=fname,
                 caption=(
                     f"✅ *Cover Page Ready!*\n\n"
-                    f"📘 *Subject:* {subject}\n"
-                    f"🔬 *Exp {exp_no}:* {exp_title}\n"
-                    f"📅 *Experiment:* {_display_date(exp_date_iso)}\n"
-                    f"📬 *Submission:* {_display_date(sub_date_iso)}"
+                    f"*Subject:* {subject}\n"
+                    f"*Exp {exp_no}:* {exp_title}\n"
+                    f"*Experiment:* {_display_date(exp_date_iso)}\n"
+                    f"*Submission:* {_display_date(sub_date_iso)}"
                 ),
                 parse_mode="Markdown",
             )
@@ -702,7 +699,7 @@ async def cp_receive_dates(update: Update, context: ContextTypes) -> int:
 
     except Exception as e:
         print(f"[coverpage] Generation error: {e}")
-        await processing_msg.edit_text(f"❌ Failed to generate cover page.\nError: {e}")
+        await processing_msg.edit_text(f"Failed to generate cover page.\nError: {e}")
 
     return ConversationHandler.END
 
@@ -713,5 +710,5 @@ async def cp_cancel(update: Update, context: ContextTypes) -> int:
     query = update.callback_query
     await query.answer()
     context.user_data.clear()
-    await query.edit_message_text("❌ Cover page generation cancelled.")
+    await query.edit_message_text("Cover page generation cancelled.")
     return ConversationHandler.END
