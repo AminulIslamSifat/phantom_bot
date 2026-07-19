@@ -8,11 +8,14 @@ from config import (
     ROUTINE_URL_EVEN_WEEK,
     routine_path_odd_week,
     routine_path_even_week,
-    routine_week_selector_path
+    routine_week_selector_path,
+    user_data_path
 )
 from bot.scripts.web_screenshot import take_web_screenshot
 from bot.services.storage import get_routine_week
 from bot.services.database import update_mongodb_data
+from telegram.ext import ContextTypes
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 
     
 def update_routine():
@@ -48,3 +51,34 @@ def toggle_routine():
         json.dump(data, file, indent=4)
     update_mongodb_data("routine_week_selector", data)
     print("Routine toggled successfully")
+
+
+async def circulate_routine(update:Update, context:ContextTypes) -> None:
+    if os.path.exists(user_data_path):
+        with open(user_data_path, "r") as file:
+            user_data = json.load(file)
+    active_users = []
+    for user, data in user_data.items():
+        if data["user_id"] != None:
+            active_users.append(data["user_id"])
+
+    is_even, starting_date = is_even_week()
+    routine_path = routine_path_even_week if is_even else routine_path_odd_week
+
+    path_extension = "routine-even-week" if is_even else "routine-odd-week"
+    routine_keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("Live Routine", url=f"https://ruet-cse-c-routine.vercel.app/{path_extension}/")]
+    ])
+    count = 0
+    message = await update.message.reply_text(f"Please wait...\nThe routine is been sent to {count} person")
+
+    for user_id in active_users:
+        await context.bot.send_photo(
+            chat_id = int(user_id),
+            photo = routine_path,
+            caption = f"This routine is applicable from {starting_date}.",
+            reply_markup = routine_keyboard
+        )
+        count += 1
+        await message.edit_text(f"Please wait...\nThe routine is been sent to {count} person")
+    await message.edit_text(f"The routine is circulated to {len(active_users)} people.")

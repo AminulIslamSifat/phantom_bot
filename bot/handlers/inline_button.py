@@ -11,8 +11,8 @@ from telegram.ext import ContextTypes, ConversationHandler
 from config import available_drive,tg_client, available_g_classroom, available_syllabus_official, available_syllabus_unofficial, user_data_path
 from bot.services.routine import update_routine, toggle_routine
 from bot.scripts.yt_downloader import download_and_upload
-from bot.services.routine import is_even_week
-from config import routine_path_even_week, routine_path_odd_week
+from bot.services.routine import circulate_routine
+from bot.services.schedule import circulate_schedule
 
 
 
@@ -70,7 +70,8 @@ async def admin_button_handler(update:Update, context:ContextTypes) -> None:
             print("routine circulation")
             await circulate_routine(update, context)
         elif query.data == "admin:circulate_schedule":
-            await query.edit_message_text("Coming Soon")
+            print("schedule circulation")
+            await circulate_schedule(update, context)
         elif query.data == "admin:cancel":
             await query.edit_message_text("Request Cancelled.")
     except Exception as e:
@@ -93,6 +94,8 @@ async def resources_button_handler(update:Update, context:ContextTypes) -> None:
             await query.edit_message_text("Avilable Unofficial syllabuses: ", reply_markup=resources_syllabus_unofficial_keyboard)
         elif query.data == "resources:goolge_classroom_code":
             await query.edit_message_text(resources_g_classroom_code, parse_mode="MarkdownV2")
+        elif query.data == "resources:all_websites":
+            await query.edit_message_text("No websites added. Try again later.")
         elif query.data == "resources:cancel":
             await query.edit_message_text("Request Cancelled.")
     except Exception as e:
@@ -158,34 +161,3 @@ async def yt_download_file_id_handler(update: Update, context: ContextTypes) -> 
 
     except Exception as e:
         print(f"Error in yt_download_file_id_handler. Error code - {e}")
-
-
-async def circulate_routine(update:Update, context:ContextTypes) -> None:
-    if os.path.exists(user_data_path):
-        with open(user_data_path, "r") as file:
-            user_data = json.load(file)
-    active_users = []
-    for user, data in user_data.items():
-        if data["user_id"] != None:
-            active_users.append(data["user_id"])
-
-    is_even, starting_date = is_even_week()
-    routine_path = routine_path_even_week if is_even else routine_path_odd_week
-
-    path_extension = "routine-even-week" if is_even else "routine-odd-week"
-    routine_keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("Live Routine", url=f"https://ruet-cse-c-routine.vercel.app/{path_extension}/")]
-    ])
-    count = 0
-    message = await update.message.reply_text(f"Please wait...\nThe routine is been sent to {count} person")
-
-    for user_id in active_users:
-        await context.bot.send_photo(
-            chat_id = int(user_id),
-            photo = routine_path,
-            caption = f"This routine is applicable from {starting_date}.",
-            reply_markup = routine_keyboard
-        )
-        count += 1
-        await message.edit_text(f"Please wait...\nThe routine is been sent to {count} person")
-    await message.edit_text(f"The routine is circulated to {len(active_users)} people.")

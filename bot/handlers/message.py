@@ -7,6 +7,7 @@ from config import (
     routine_path_odd_week
 )
 from bot.services.routine import is_even_week
+from bot.services.schedule import get_schedule
 
 
 resources_keyboard = InlineKeyboardMarkup([
@@ -15,13 +16,6 @@ resources_keyboard = InlineKeyboardMarkup([
     [InlineKeyboardButton("G. Classroom Code", callback_data="resources:goolge_classroom_code"), InlineKeyboardButton("All websites", callback_data="resources:all_websites")],
     [InlineKeyboardButton("Cancel", callback_data="resources:cancel")]
 ])
-
-resources_cover_page_keyboard = InlineKeyboardMarkup([
-    [InlineKeyboardButton("Official", url="https://ruet-cover-page.github.io/"), InlineKeyboardButton("Unofficial", callback_data="resources:cover_page:unofficial")],
-    [InlineKeyboardButton("Cancel", callback_data="resources:cancel")]
-])
-
-
 
 
 
@@ -50,10 +44,17 @@ async def routine(update, context):
         print(f"Routine function error - {e}")
 
 async def schedule(update:Update, context:ContextTypes):
-    await update.message.reply_text("schedule will come soon", reply_markup=main_keyboard)
+    try:
+        schedule_text = get_schedule()
+        await update.message.reply_text(
+            schedule_text, 
+            reply_markup=main_keyboard, 
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        print(f"Schedule function error - {e}")
+        await update.message.reply_text("Failed to get schedule.", reply_markup=main_keyboard)
 
-async def cover_page(update:Update, context:ContextTypes) -> None:
-    await update.message.reply_text("Official is the ruet-cover-page from github, Unofficial is a project of Sec C. You can find your cover page prepared automatically in unofficial section.", reply_markup=resources_cover_page_keyboard)
 
 
 async def message_handler(update: Update, context: ContextTypes) -> None:
@@ -63,8 +64,7 @@ async def message_handler(update: Update, context: ContextTypes) -> None:
     predefined_commands = {
         "Routine": routine,
         "Schedule": schedule,
-        "Resources": resources, 
-        "Cover Page": cover_page
+        "Resources": resources,
     }
     command = predefined_commands.get(user_text)
 

@@ -26,6 +26,19 @@ from bot.handlers.conversation import(
     recieve_notice,
     cancel_notice
 )
+from bot.handlers.coverpage import (
+    cover_page_start,
+    cp_subject_selected,
+    cp_experiment_selected,
+    cp_experiment_manual_prompt,
+    cp_receive_manual_exp,
+    cp_receive_dates,
+    cp_cancel,
+    SELECT_SUBJECT,
+    SELECT_EXPERIMENT,
+    MANUAL_EXP_INPUT,
+    ENTER_DATES,
+)
 import asyncio
 
 
@@ -72,6 +85,32 @@ app.add_handler(ConversationHandler(
         ]
     },
     fallbacks=[]
+))
+
+# Cover page conversation — entry via reply keyboard "Cover Page" button
+app.add_handler(ConversationHandler(
+    entry_points=[MessageHandler(filters.Regex("^Cover Page$"), cover_page_start)],
+    states={
+        SELECT_SUBJECT: [
+            CallbackQueryHandler(cp_subject_selected, pattern="^coverpage:subject:"),
+            CallbackQueryHandler(cp_cancel, pattern="^coverpage:cancel$"),
+        ],
+        SELECT_EXPERIMENT: [
+            CallbackQueryHandler(cp_experiment_selected, pattern="^coverpage:exp:(?!manual$)"),
+            CallbackQueryHandler(cp_experiment_manual_prompt, pattern="^coverpage:exp:manual$"),
+            CallbackQueryHandler(cp_cancel, pattern="^coverpage:cancel$"),
+        ],
+        MANUAL_EXP_INPUT: [
+            MessageHandler(filters.TEXT & ~filters.COMMAND, cp_receive_manual_exp),
+            CallbackQueryHandler(cp_cancel, pattern="^coverpage:cancel$"),
+        ],
+        ENTER_DATES: [
+            MessageHandler(filters.TEXT & ~filters.COMMAND, cp_receive_dates),
+            CallbackQueryHandler(cp_cancel, pattern="^coverpage:cancel$"),
+        ],
+    },
+    fallbacks=[CallbackQueryHandler(cp_cancel, pattern="^coverpage:cancel$")],
+    allow_reentry=True,
 ))
 
 #specific hadler
