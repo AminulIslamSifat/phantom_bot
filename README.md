@@ -125,7 +125,7 @@ phantom_bot/
 
 ```bash
 # Clone the repository
-git clone <your-repo-url>
+git clone https://github.com/AminulIslamSifat/phantom_bot
 cd phantom_bot
 
 # Create virtual environment and install dependencies
