@@ -1,6 +1,5 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
-from bot.scripts.yt_downloader import get_available_video_formats
 import asyncio
 from config import user_data_path
 import os
@@ -9,11 +8,6 @@ import json
 
 
 
-# YT downloader conversation from resources:yt_downloader
-resources_yt_downloader_keyboard = InlineKeyboardMarkup([
-    [InlineKeyboardButton("Cancel", callback_data="resources:cancel")]
-])
-
 registration_cancel_keyboard = InlineKeyboardMarkup([
     [InlineKeyboardButton("Cancel", callback_data="registration:cancel")]
 ])
@@ -21,55 +15,6 @@ registration_cancel_keyboard = InlineKeyboardMarkup([
 notice_cancel_keyboard = InlineKeyboardMarkup([
     [InlineKeyboardButton("Cancel", callback_data="admin:notice:cancel")]
 ])
-
-
-async def start_yt_downloader(update:Update, context:ContextTypes) -> None:
-    await update.callback_query.answer()
-    await update.callback_query.edit_message_text("Enter the link of the video:", reply_markup=resources_yt_downloader_keyboard)
-    return "recieve_yt_link"
-
-async def receieve_yt_link(update:Update, context:ContextTypes) -> None:
-    link = update.message.text
-
-    if not link.startswith(("http://", "https://")):
-        await update.message.reply_text("Please upload a valid link (with https://).")
-        return "recieve_yt_link"
-    context.user_data["yt_link"] = link
-
-    message = await update.message.reply_text("Fetching all the downloadable formats...")
-
-    try:
-        loop = asyncio.get_running_loop()
-        format_map = await loop.run_in_executor(None, get_available_video_formats, link)
-    except Exception as e:
-        print(f"Error fetching formats: {e}")
-        await message.edit_text("❌ Error fetching available formats.")
-        return ConversationHandler.END
-
-    if not format_map:
-        await message.edit_text("❌ Failed to fetch video formats. Please make sure the link is correct.")
-        return ConversationHandler.END
-
-    formats_keyboard_list = []
-    for label, (fid, size) in format_map.items():
-        # Compact callback: v|TIER_LABEL for video, a for audio
-        # Telegram callback_data limit is 64 bytes - longest: "resources:yt_downloader:download:v|1440p" = 42 bytes
-        if label.startswith("Audio"):
-            cb = "resources:yt_downloader:download:a"
-        else:
-            cb = f"resources:yt_downloader:download:v|{label}"
-        formats_keyboard_list.append([InlineKeyboardButton(f"{label} : {size}", callback_data=cb)])
-    formats_keyboard_list.append([InlineKeyboardButton("Cancel", callback_data="resources:cancel")])
-    formats_keyboard = InlineKeyboardMarkup(formats_keyboard_list)
-
-    await message.edit_text("Available formats to download: ", reply_markup=formats_keyboard)
-    return ConversationHandler.END
-
-async def cancel_yt_downloader(update: Update, context: ContextTypes) -> int:
-    query = update.callback_query
-    await query.answer()
-    await query.edit_message_text("Request Cancelled.")
-    return ConversationHandler.END
 
 
 

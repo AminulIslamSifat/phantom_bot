@@ -11,8 +11,8 @@ from bot.services.schedule import get_schedule
 from config import ROUTINE_URL_EVEN_WEEK, ROUTINE_URL_ODD_WEEK
 
 resources_keyboard = InlineKeyboardMarkup([
+    [InlineKeyboardButton("CSE Archive", url="https://ruetcsearchive.app/")],
     [InlineKeyboardButton("Drive", callback_data="resources:drive"), InlineKeyboardButton("Syllabus", callback_data="resources:syllabus")],
-    [InlineKeyboardButton("YT-downloader", callback_data="resources:yt_downloader"), InlineKeyboardButton("CSE Archive", url="https://ruetcsearchive.app/")],
     [InlineKeyboardButton("G. Classroom Code", callback_data="resources:goolge_classroom_code"), InlineKeyboardButton("All websites", callback_data="resources:all_websites")],
     [InlineKeyboardButton("Cancel", callback_data="resources:cancel")]
 ])

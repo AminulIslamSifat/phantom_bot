@@ -10,7 +10,6 @@ import threading
 from telegram.ext import ContextTypes, ConversationHandler
 from config import available_drive,tg_client, available_g_classroom, available_syllabus_official, available_syllabus_unofficial, user_data_path
 from bot.services.routine import update_routine, toggle_routine
-from bot.scripts.yt_downloader import download_and_upload
 from bot.services.routine import circulate_routine
 from bot.services.schedule import circulate_schedule
 
@@ -134,36 +133,6 @@ async def syllabus_id_handler(update:Update, context:ContextTypes) -> None:
     except Exception as e:
         print(f"Error in syllabus_id_hadler. Error code - {e}")
 
-async def yt_download_file_id_handler(update: Update, context: ContextTypes) -> None:
-    try:
-        query = update.callback_query
-        chat_id = update.effective_chat.id
-        await query.answer()
-
-        link = context.user_data.get("yt_link")
-        if not link:
-            await update.effective_message.reply_text("Session Expired. Please try again.")
-            return
-
-        # Tier-to-max-height map (must match get_available_video_formats)
-        TIER_MAX = {"4K": 2160, "1440p": 1440, "1080p": 1080, "720p": 720,
-                    "480p": 480, "360p": 360, "240p": 240, "144p": 144}
-
-        raw = query.data.split(":")[-1]  # e.g. "v|1080p" or "a"
-        if raw.startswith("v|"):
-            tier = raw[2:]
-            tier_max = TIER_MAX.get(tier, 720)
-            format_selector = f"best[height<={tier_max}]/bestvideo[height<={tier_max}]+bestaudio/best"
-            label = tier
-        else:
-            format_selector = "bestaudio/best"
-            label = "Audio"
-
-        await query.edit_message_text(f"Format: {label}\nDownload Started...")
-        await download_and_upload(context.bot, chat_id, link, format_selector)
-
-    except Exception as e:
-        print(f"Error in yt_download_file_id_handler. Error code - {e}")
 
 
 
