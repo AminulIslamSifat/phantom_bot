@@ -51,6 +51,10 @@ tg_client = TelegramClient(StringSession(ACTIVE_TELETHON_SESSION), TELETHON_API_
 PHANTOM_BOT_CHANNEL_ID = int(os.environ["PHANTOM_BOT_CHANNEL_ID"])
 MAX_DOWNLOAD_SIZE_BYTES = int(os.environ.get("MAX_DOWNLOAD_SIZE_MB", 500)) * 1024 * 1024
 TMP_DIR=".data/tmp/"
+_BASE = Path(__file__).parent  # project root
+TEACHER_SUBJECT_PATH = _BASE / ".data" / "subject_teachers.json"
+COVERPAGE_OUTPUT_DIR = _BASE / "coverpage" / "generated_covers"
+OFFICIAL_URL = "https://ruet-cover-page.github.io/"
 
 # YouTube cookies copied from browsers. First existing profile wins.
 YT_COOKIES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cookies")
