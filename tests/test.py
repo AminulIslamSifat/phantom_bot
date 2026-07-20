@@ -7,13 +7,10 @@ from config import user_data_path
 from config import TEACHER_SUBJECT_PATH
 from pathlib import Path
 
+from config import mdb_client
 
-def _load_json(path: Path) -> dict:
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+db = mdb_client["phantom_bot_db"]
 
-teacher_data = _load_json(TEACHER_SUBJECT_PATH)
-subjects = {}
-for k,v in teacher_data.items():
-    subjects[k] = v["type"]
-print(subjects)
+collections = db.list_collection_names()
+
+print(collections)
