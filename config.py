@@ -52,6 +52,25 @@ PHANTOM_BOT_CHANNEL_ID = int(os.environ["PHANTOM_BOT_CHANNEL_ID"])
 MAX_DOWNLOAD_SIZE_BYTES = int(os.environ.get("MAX_DOWNLOAD_SIZE_MB", 500)) * 1024 * 1024
 TMP_DIR=".data/tmp/"
 
+# YouTube cookies copied from browsers. First existing profile wins.
+YT_COOKIES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cookies")
+YT_COOKIES_FILE = os.path.join(YT_COOKIES_DIR, "cookies.txt")
+
+
+def _select_yt_cookies_browser():
+    candidates = [
+        ("firefox", os.path.join(YT_COOKIES_DIR, "zen")),
+        ("firefox", os.path.join(YT_COOKIES_DIR, "firefox-developer-edition")),
+    ]
+    for browser, profile in candidates:
+        if os.path.isfile(os.path.join(profile, "cookies.sqlite")):
+            return (browser, profile, None, None)
+    return None
+
+
+YT_COOKIES_BROWSER = _select_yt_cookies_browser()
+
+
 
 main_keyboard = ReplyKeyboardMarkup([
     [KeyboardButton("Routine"), KeyboardButton("Schedule")],

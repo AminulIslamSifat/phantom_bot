@@ -70,7 +70,7 @@ app.add_handler(ConversationHandler(
     fallbacks=[]
 ))
 app.add_handler(ConversationHandler(
-    entry_points=[CallbackQueryHandler(ask_for_roll, pattern="^register$")],
+    entry_points=[CommandHandler("register", ask_for_roll)],
     states={
         "recieve_roll" : [
             MessageHandler(filters.TEXT & ~filters.COMMAND, recieve_roll),

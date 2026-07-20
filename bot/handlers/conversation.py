@@ -4,7 +4,7 @@ from bot.scripts.yt_downloader import get_available_video_formats
 import asyncio
 from config import user_data_path
 import os
-from bot.services.database import db
+from bot.services.database import load_users, set_user_telegram_id
 import json
 
 
@@ -113,46 +113,33 @@ async def cancel_notice(update:Update, context:ContextTypes):
 
 #Registration conversation
 async def ask_for_roll(update:Update, context:ContextTypes) -> None:
-    query = update.callback_query
-    await query.answer()
-
-    if query.data == "register":
-        await query.edit_message_text("Please Enter your roll number (2400000): ", reply_markup=registration_cancel_keyboard)
+    try:
+        await update.message.reply_text("Please Enter your roll number (2400000): ", reply_markup=registration_cancel_keyboard)
         return "recieve_roll"
+    except Exception as e:
+        print(f"Error in ask_for_roll function, Error code - {e}")
     
 async def recieve_roll(update:Update, context:ContextTypes) -> None:
-    import json
     text = update.message.text
     user_id = update.effective_user.id
 
     try:
         roll = int(text)
-    except Exception as e:
+    except Exception:
         await update.message.reply_text("Please enter a valid roll number. Example: 2400000\n\nRoll:")
         return "recieve_roll"
-    
+
     if not (2403001 <= roll <= 2403180 or roll == 2400000):
         await update.message.reply_text("Sorry, You are not eligible to use this bot.")
         return ConversationHandler.END
-    
-    if os.path.exists(user_data_path):
-        with open(user_data_path, "r") as file:
-            user_data = json.load(file)
-    else:
-        await update.message.reply_text("Something went wrong. Try again later.")
-    for user, data in user_data.items():
-        if str(user) == str(roll):
-            data["user_id"] = user_id
-    with open(user_data_path, "w") as file:
-        json.dump(user_data, file, indent=4)
 
-    collection = db[str(roll)]
-    collection.update_one(
-        {"roll" : str(roll)},
-        {"$set" : {"user_id" : user_id}}
-    )
+    if not set_user_telegram_id(str(roll), user_id):
+        await update.message.reply_text("Sorry, your roll number was not found in the database. Contact an admin.")
+        return ConversationHandler.END
 
-    await update.message.reply_text(f"Registration Complete.")
+    load_users()
+
+    await update.message.reply_text("Registration Complete. If you entered the wrong roll number you can register again by using /register command.")
     return ConversationHandler.END
 
 

@@ -23,7 +23,6 @@ help_keyboard = InlineKeyboardMarkup([
     [InlineKeyboardButton("Developer Guide", url="https://github.com/AminulIslamSifat/phantom_bot/blob/main/developer_helper.md")]
 ])
 
-register_keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("Register", callback_data="register")]])
 
 
 async def start(update:Update, context: ContextTypes) -> None:
@@ -38,7 +37,7 @@ async def start(update:Update, context: ContextTypes) -> None:
             active_user.append(data["user_id"])
     
     if user_id not in active_user:
-        await update.message.reply_text(f"Hello {update.effective_user.last_name}, Please register to use the bot.", reply_markup=register_keyboard)
+        await update.message.reply_text(f"Hello {update.effective_user.last_name}, Please register by /register to enjoy the full survices.", reply_markup=main_keyboard)
     else:
         await update.message.reply_text(f"Welcome Back {update.effective_user.last_name}", reply_markup=main_keyboard)
 

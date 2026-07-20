@@ -5,11 +5,19 @@ import asyncio
 from typing import Dict, Tuple
 from config import tg_client, PHANTOM_BOT_CHANNEL_ID, TMP_DIR, MAX_DOWNLOAD_SIZE_BYTES
 try:
-    from config import YT_COOKIES_FILE  # optional: path to a cookies.txt exported from a logged-in browser
+    from config import YT_COOKIES_FILE, YT_COOKIES_BROWSER  # optional cookie file / copied browser profile
 except ImportError:
     YT_COOKIES_FILE = None
+    YT_COOKIES_BROWSER = None
 from telethon import TelegramClient
 from telethon.tl.types import DocumentAttributeAudio, DocumentAttributeVideo
+
+
+def _apply_yt_cookies(ydl_opts: Dict) -> None:
+    if YT_COOKIES_FILE and os.path.isfile(YT_COOKIES_FILE):
+        ydl_opts["cookiefile"] = YT_COOKIES_FILE
+    elif YT_COOKIES_BROWSER:
+        ydl_opts["cookiesfrombrowser"] = YT_COOKIES_BROWSER
 
 def get_available_video_formats(link: str) -> Dict[str, Tuple[str, str]]:
     """Returns {label: (format_selector, size)} sorted high to low.
@@ -31,8 +39,7 @@ def get_available_video_formats(link: str) -> Dict[str, Tuple[str, str]]:
     ]
 
     ydl_opts = {'quiet': True, 'no_warnings': True}
-    if YT_COOKIES_FILE:
-        ydl_opts['cookiefile'] = YT_COOKIES_FILE
+    _apply_yt_cookies(ydl_opts)
 
     def fmt_size(bytes_val):
         if not bytes_val:
@@ -137,8 +144,7 @@ async def download_and_upload(bot, chat_id: int, link: str, format_id: str):
         'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3'}] if is_audio_only else [],
         'progress_hooks': [dl_hook],
     }
-    if YT_COOKIES_FILE:
-        ydl_opts['cookiefile'] = YT_COOKIES_FILE
+    _apply_yt_cookies(ydl_opts)
 
     file_path = None
     try:

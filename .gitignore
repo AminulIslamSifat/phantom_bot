@@ -4,3 +4,4 @@ venv/
 phantom_bot.egg-info/
 .data/
 __pycache__/
+.editor_tools_backups/

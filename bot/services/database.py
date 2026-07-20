@@ -9,39 +9,51 @@ from datetime import datetime
 
 
 db = mdb_client["phantom_bot_db"]
+USERS_COLLECTION = "users"
 
 
 def load_users():
     os.makedirs(".data/", exist_ok=True)
     try:
-        collections = db.list_collection_names()
-        user_collections = []
-        data =  {}
+        data = {}
 
-        #Filtering all the additional collections from user
-        for x in collections:
-            if x == "2400000":
-                continue
-            try:
-                int(x)
-                user_collections.append(str(x))
-            except:
+        for user_data in db[USERS_COLLECTION].find({}):
+            roll = user_data.get("roll")
+            if roll is None:
                 continue
 
-        for user in user_collections:
-            user_data = db[user].find_one({"roll" : user})
-            if user_data:
-                data[user] = {
-                    "name": user_data.get("name"),
-                    "section": user_data.get("section"),
-                    "user_id": user_data.get("user_id"),
-                    "teacher_choices": user_data.get("teacher_choices", {})
-                }
-        
+            roll = str(roll)
+            data[roll] = {
+                "name": user_data.get("name"),
+                "section": user_data.get("section"),
+                "user_id": user_data.get("user_id"),
+                "teacher_choices": user_data.get("teacher_choices", {})
+            }
+
         with open(user_data_path, "w") as file:
             json.dump(data, file, indent=4)
     except Exception as e:
         print(f"Error while loading the user data. Error code - {e}")
+
+
+def get_user_by_roll(roll: str) -> dict | None:
+    try:
+        return db[USERS_COLLECTION].find_one({"roll": str(roll)})
+    except Exception as e:
+        print(f"Error while fetching user from '{USERS_COLLECTION}' collection. Error code - {e}")
+        return None
+
+
+def set_user_telegram_id(roll: str, user_id: int) -> bool:
+    try:
+        result = db[USERS_COLLECTION].update_one(
+            {"roll": str(roll)},
+            {"$set": {"user_id": user_id}}
+        )
+        return result.matched_count > 0
+    except Exception as e:
+        print(f"Error while updating user telegram id in '{USERS_COLLECTION}' collection. Error code - {e}")
+        return False
         
 
 
