@@ -11,9 +11,9 @@ admin_keyboard = InlineKeyboardMarkup([
     [InlineKeyboardButton("Update Routine", callback_data="admin:routine_update"), InlineKeyboardButton("Edit Routine", url="https://ruet-cse-liart.vercel.app/routine/editor")],
     [InlineKeyboardButton("Toggle Routine", callback_data="admin:routine_toggle"), InlineKeyboardButton("Circulate Routine", callback_data="admin:routine_circulate")],
     [InlineKeyboardButton("Edit Schedule", url="https://ruet-cse-liart.vercel.app/schedule"), InlineKeyboardButton("Circulate Schedule", callback_data="admin:schedule_circulate")],
+    [InlineKeyboardButton("Publish Notice", callback_data="admin:notice"), InlineKeyboardButton("Show User", callback_data="admin:show_user")],
     [InlineKeyboardButton("Edit Subject Teacher Data", url="https://ruet-cse-liart.vercel.app/teachers")],
     [InlineKeyboardButton("Edit experiment/Assingment detail", url="https://ruet-cse-liart.vercel.app/experiments")],
-    [InlineKeyboardButton("Publish Notice", callback_data="admin:notice"), InlineKeyboardButton("Show User", callback_data="admin:show_user")],
     [InlineKeyboardButton("Cancel", callback_data="admin:cancel")]
 ])
 

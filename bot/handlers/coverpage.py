@@ -144,8 +144,8 @@ def _display_date(iso: str) -> str:
 def _build_subject_keyboard(subjects: list[str]) -> InlineKeyboardMarkup:
     """2 subjects per row, then footer."""
     rows = []
-    for i in range(0, len(subjects), 3):
-        chunk = subjects[i : i + 3]
+    for i in range(0, len(subjects), 1):
+        chunk = subjects[i : i + 1]
         rows.append([
             InlineKeyboardButton(s, callback_data=f"coverpage:subject:{s}")
             for s in chunk
@@ -244,7 +244,7 @@ async def cp_subject_selected(update: Update, context: ContextTypes) -> str:
     roll, student = _get_student_by_user_id(query.from_user.id)
     if not roll:
         await query.edit_message_text(
-            "❌ Could not find your student data. Please register first with /start.",
+            "❌ Could not find your student data. Please register first with /register.",
             reply_markup=_footer_keyboard(),
         )
         return ConversationHandler.END
@@ -294,7 +294,7 @@ async def cp_teacher_selected(update: Update, context: ContextTypes) -> str:
     roll, student = _get_student_by_user_id(query.from_user.id)
     if not roll:
         await query.edit_message_text(
-            "❌ Could not find your student data. Please register first with /start.",
+            "❌ Could not find your student data. Please register first with /register.",
             reply_markup=_footer_keyboard(),
         )
         return ConversationHandler.END
@@ -458,7 +458,7 @@ async def cp_dates_quick_select(update: Update, context: ContextTypes) -> int:
     roll, student = _get_student_by_user_id(user_id)
     if not roll:
         await query.edit_message_text(
-            "❌ Could not find your student data. Please register first with /start.",
+            "❌ Could not find your student data. Please register first with /register.",
             reply_markup=_footer_keyboard(),
         )
         return ConversationHandler.END
@@ -589,7 +589,7 @@ async def cp_receive_dates(update: Update, context: ContextTypes) -> int:
     roll, student = _get_student_by_user_id(user_id)
     if not roll:
         await update.message.reply_text(
-            "❌ Could not find your student data. Please register first with /start.",
+            "❌ Could not find your student data. Please register first with /register.",
             reply_markup=_footer_keyboard(),
         )
         return ConversationHandler.END

@@ -14,6 +14,7 @@ from telethon.tl.types import DocumentAttributeAudio, DocumentAttributeVideo
 
 
 def _apply_yt_cookies(ydl_opts: Dict) -> None:
+    ydl_opts.setdefault("remote_components", ["ejs:github"])
     if YT_COOKIES_FILE and os.path.isfile(YT_COOKIES_FILE):
         ydl_opts["cookiefile"] = YT_COOKIES_FILE
     elif YT_COOKIES_BROWSER:
