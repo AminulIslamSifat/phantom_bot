@@ -1,5 +1,6 @@
 import os
 import json
+import asyncio
 from datetime import datetime, date
 from config import mdb_client, user_data_path
 from telegram import Update
@@ -104,47 +105,49 @@ def get_schedule() -> str:
 
 
 async def circulate_schedule(update: Update, context: ContextTypes) -> None:
-    active_users = []
-    if os.path.exists(user_data_path):
-        try:
-            with open(user_data_path, "r") as file:
-                user_data = json.load(file)
-            for user, data in user_data.items():
-                if data.get("user_id") is not None:
-                    active_users.append(data["user_id"])
-        except Exception as e:
-            print(f"Error reading user_data.json: {e}")
-            msg = update.message if update.message else update.callback_query.message
-            await msg.reply_text("Failed to read user data.")
-            return
+    if not os.path.exists(user_data_path):
+        msg = update.message if update.message else update.callback_query.message
+        return await msg.reply_text("No user data found.")
+
+    try:
+        with open(user_data_path, "r") as file:
+            user_data = json.load(file)
+        active_users = [
+            data["user_id"] for data in user_data.values()
+            if data.get("user_id") is not None
+        ]
+    except Exception as e:
+        print(f"Error reading user_data.json: {e}")
+        msg = update.message if update.message else update.callback_query.message
+        return await msg.reply_text("Failed to read user data.")
 
     if not active_users:
         msg = update.message if update.message else update.callback_query.message
-        await msg.reply_text("No active users found to circulate to.")
-        return
+        return await msg.reply_text("No active users found to circulate to.")
 
     try:
         schedule_text = get_schedule()
     except Exception as e:
         print(f"Error fetching schedule: {e}")
         msg = update.message if update.message else update.callback_query.message
-        await msg.reply_text("Failed to fetch schedule for circulation.")
-        return
+        return await msg.reply_text("Failed to fetch schedule for circulation.")
 
-    count = 0
     msg = update.message if update.message else update.callback_query.message
-    message = await msg.reply_text(f"Please wait...\nThe schedule is being sent to {count} person")
+    message = await msg.reply_text(f"Sending schedule to {len(active_users)} people...")
 
-    for user_id in active_users:
+    async def send_one(user_id: int) -> bool:
         try:
             await context.bot.send_message(
                 chat_id=int(user_id),
                 text=schedule_text,
-                parse_mode="Markdown"
+                parse_mode="Markdown",
             )
-            count += 1
-            await message.edit_text(f"Please wait...\nThe schedule is being sent to {count} person")
+            return True
         except Exception as e:
             print(f"Failed to send schedule to {user_id}: {e}")
+            return False
 
-    await message.edit_text(f"The schedule is circulated to {count} people.")
+    results = await asyncio.gather(*(send_one(uid) for uid in active_users))
+    success_count = sum(results)
+
+    await message.edit_text(f"Schedule circulated to {success_count}/{len(active_users)} people. ✅")

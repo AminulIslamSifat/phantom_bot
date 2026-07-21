@@ -1,6 +1,5 @@
 import os
-import requests
-import urllib.parse
+import asyncio
 import json
 from datetime import date, timedelta
 from config import (
@@ -53,34 +52,44 @@ def toggle_routine():
     print("Routine toggled successfully")
 
 
-async def circulate_routine(update:Update, context:ContextTypes) -> None:
-    if os.path.exists(user_data_path):
-        with open(user_data_path, "r") as file:
-            user_data = json.load(file)
-    active_users = []
-    for user, data in user_data.items():
-        if data["user_id"] != None:
-            active_users.append(data["user_id"])
+async def circulate_routine(update: Update, context: ContextTypes) -> None:
+    if not os.path.exists(user_data_path):
+        return await update.effective_message.reply_text("No user data found.")
+
+    with open(user_data_path, "r") as file:
+        user_data = json.load(file)
+
+    active_users = [
+        data["user_id"] for data in user_data.values()
+        if data["user_id"] is not None
+    ]
 
     is_even, starting_date = is_even_week()
     routine_path = routine_path_even_week if is_even else routine_path_odd_week
-
     path_extension = "routine-even-week" if is_even else "routine-odd-week"
+
     routine_keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton("Live Routine", url=f"https://ruet-cse-liart.vercel.app/routine/{path_extension}/")]
     ])
-    count = 0
-    msg = update.effective_message
-    message = await msg.reply_text(f"Please wait...\nThe routine is been sent to {count} person")
 
-    for user_id in active_users:
-        await context.bot.send_photo(
-            chat_id = int(user_id),
-            photo = routine_path,
-            caption = f"This routine is applicable from {starting_date}.",
-            reply_markup = routine_keyboard
-        )
-        count += 1
-        await message.edit_text(f"Please wait...\nThe routine is been sent to {count} person")
-    await message.edit_text(f"The routine is circulated to {len(active_users)} people.")
+    msg = await update.effective_message.reply_text(
+        f"Sending routine to {len(active_users)} people..."
+    )
 
+    async def send_one(user_id: int) -> bool:
+        try:
+            await context.bot.send_photo(
+                chat_id=int(user_id),
+                photo=routine_path,
+                caption=f"This routine is applicable from {starting_date}.",
+                reply_markup=routine_keyboard,
+            )
+            return True
+        except Exception as e:
+            print(f"Error sending to {user_id}: {e}")
+            return False
+
+    results = await asyncio.gather(*(send_one(uid) for uid in active_users))
+    success_count = sum(results)
+
+    await msg.edit_text(f"Routine circulated to {success_count}/{len(active_users)} people. ✅")
