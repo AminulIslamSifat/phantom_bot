@@ -54,7 +54,17 @@ def set_user_telegram_id(roll: str, user_id: int) -> bool:
     except Exception as e:
         print(f"Error while updating user telegram id in '{USERS_COLLECTION}' collection. Error code - {e}")
         return False
-        
+
+
+def unset_user_telegram_id(user_id: int) -> None:
+    try:
+        db[USERS_COLLECTION].update_many(
+            {"user_id": user_id},
+            {"$set": {"user_id": None}}
+        )
+    except Exception as e:
+        print(f"Error while unsetting user telegram id in '{USERS_COLLECTION}' collection. Error code - {e}")
+
 
 
 def load_routine_odd_even_sequence():

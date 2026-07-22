@@ -3,7 +3,7 @@ from telegram.ext import ContextTypes, ConversationHandler
 import asyncio
 from config import user_data_path
 import os
-from bot.services.database import load_users, set_user_telegram_id
+from bot.services.database import load_users, set_user_telegram_id, unset_user_telegram_id
 import json
 
 
@@ -77,6 +77,8 @@ async def recieve_roll(update:Update, context:ContextTypes) -> None:
     if not (2403001 <= roll <= 2403180 or roll == 2400000):
         await update.message.reply_text("Sorry, You are not eligible to use this bot.")
         return ConversationHandler.END
+
+    unset_user_telegram_id(user_id)
 
     if not set_user_telegram_id(str(roll), user_id):
         await update.message.reply_text("Sorry, your roll number was not found in the database. Contact an admin.")
