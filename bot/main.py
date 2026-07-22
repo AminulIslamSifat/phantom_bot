@@ -3,6 +3,7 @@ from aiohttp import web
 from bot import app
 import os
 from bot.services.database import load_data
+from bot.services.routine import start_routine_watcher
 
 
 async def health(request):
@@ -23,6 +24,7 @@ async def start_server():
 
 if __name__ == '__main__':
     load_data()
+    start_routine_watcher()
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 

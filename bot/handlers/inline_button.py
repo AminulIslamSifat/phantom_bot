@@ -6,10 +6,9 @@ from telegram import (
 import os
 import json
 import asyncio
-import threading
 from telegram.ext import ContextTypes, ConversationHandler
 from config import available_drive,tg_client, available_g_classroom, available_syllabus_official, available_syllabus_unofficial, user_data_path
-from bot.services.routine import update_routine, toggle_routine
+from bot.services.routine import toggle_routine
 from bot.services.routine import circulate_routine
 from bot.services.schedule import circulate_schedule
 
@@ -57,10 +56,6 @@ async def admin_button_handler(update:Update, context:ContextTypes) -> None:
 
         if query.data == "admin:routine_toggle":
             await query.edit_message_text("Please make sure if you really want to toggle the routine: ", reply_markup=admin_toggle_routine_keyboard)
-        elif query.data == "admin:routine_update":
-            await query.edit_message_text("The Routine image will be updated from the website in the background. There won't be any completion notice.\nIf you want to modify the content of the routine then please go to 'Edit Routine'. Thank you.")
-            t = threading.Thread(target=update_routine)
-            t.start()
         elif query.data == "admin:toggle_routine:confirm":
             loop = asyncio.get_running_loop()
             await loop.run_in_executor(None, toggle_routine)

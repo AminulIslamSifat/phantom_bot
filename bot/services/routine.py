@@ -1,7 +1,9 @@
 import os
 import asyncio
 import json
-from datetime import date, timedelta
+import threading
+import time
+from datetime import date, datetime, timedelta
 from config import (
     ROUTINE_URL_ODD_WEEK,
     ROUTINE_URL_EVEN_WEEK,
@@ -12,20 +14,134 @@ from config import (
 )
 from bot.scripts.web_screenshot import take_web_screenshot
 from bot.services.storage import get_routine_week
-from bot.services.database import update_mongodb_data
+from bot.services.database import update_mongodb_data, db
 from telegram.ext import ContextTypes
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 
-    
-def update_routine():
+
+ROUTINE_SYNC_STATE_PATH = ".data/routine_last_sync.json"
+
+_routine_update_lock = threading.Lock()
+_routine_update_in_progress = False
+_routine_timer_lock = threading.Lock()
+_routine_update_timer: threading.Timer | None = None
+
+
+def _utc_now() -> datetime:
+    return datetime.utcnow()
+
+
+def _latest_routine_updated_at() -> datetime | None:
+    try:
+        latest: datetime | None = None
+        for doc in db["routine"].find({}, {"updated_at": 1}):
+            updated_at = doc.get("updated_at")
+            if isinstance(updated_at, datetime) and (latest is None or updated_at > latest):
+                latest = updated_at
+        return latest
+    except Exception as e:
+        print(f"Could not read routine updated_at from MongoDB. Error Code - {e}")
+        return None
+
+
+def _load_last_sync_time() -> datetime | None:
+    try:
+        if not os.path.exists(ROUTINE_SYNC_STATE_PATH):
+            return None
+        with open(ROUTINE_SYNC_STATE_PATH, "r") as file:
+            raw = json.load(file).get("last_sync")
+        return datetime.fromisoformat(raw) if raw else None
+    except Exception as e:
+        print(f"Could not read routine sync state. Error Code - {e}")
+        return None
+
+
+def _save_last_sync_time(timestamp: datetime | None) -> None:
+    try:
+        os.makedirs(".data/", exist_ok=True)
+        with open(ROUTINE_SYNC_STATE_PATH, "w") as file:
+            json.dump({"last_sync": timestamp.isoformat() if timestamp else None}, file, indent=4)
+    except Exception as e:
+        print(f"Could not save routine sync state. Error Code - {e}")
+
+
+def update_routine() -> None:
+    global _routine_update_in_progress
+
+    with _routine_update_lock:
+        if _routine_update_in_progress:
+            print("Routine update already running. Skipping this request.")
+            return
+        _routine_update_in_progress = True
+
     try:
         print("Routine Update started...")
         os.makedirs("resources/routine", exist_ok=True)
         take_web_screenshot(ROUTINE_URL_ODD_WEEK, output_path=routine_path_odd_week)
         take_web_screenshot(ROUTINE_URL_EVEN_WEEK, output_path=routine_path_even_week)
+        _save_last_sync_time(_latest_routine_updated_at() or _utc_now())
         print("Routine Updated.")
     except Exception as e:
         print(f"Something went wrong while updating the routine. Error Code - {e}")
+    finally:
+        with _routine_update_lock:
+            _routine_update_in_progress = False
+
+
+def _schedule_routine_update() -> None:
+    global _routine_update_timer
+
+    with _routine_timer_lock:
+        if _routine_update_timer is not None:
+            _routine_update_timer.cancel()
+        _routine_update_timer = threading.Timer(3.0, update_routine)
+        _routine_update_timer.daemon = True
+        _routine_update_timer.start()
+
+
+def sync_routine_if_stale() -> None:
+    try:
+        missing_images = not (
+            os.path.exists(routine_path_odd_week) and os.path.exists(routine_path_even_week)
+        )
+        last_sync = _load_last_sync_time()
+
+        if missing_images or last_sync is None:
+            update_routine()
+            return
+
+        latest_update = _latest_routine_updated_at()
+        if latest_update is not None and latest_update > last_sync:
+            update_routine()
+    except Exception as e:
+        print(f"Something went wrong while syncing the routine on startup. Error Code - {e}")
+
+
+def start_routine_watcher() -> None:
+    def _watch_routine_collection() -> None:
+        sync_routine_if_stale()
+
+        pipeline = [{"$match": {"ns.coll": "routine"}}]
+        resume_token = None
+
+        while True:
+            try:
+                watch_kwargs = {"resume_after": resume_token} if resume_token else {}
+                with db.watch(pipeline, **watch_kwargs) as stream:
+                    print("Routine MongoDB watcher started...")
+                    for change in stream:
+                        resume_token = stream.resume_token
+                        operation_type = change.get("operationType", "unknown")
+                        print(f"Routine data changed ({operation_type}). Scheduling routine image update...")
+                        _schedule_routine_update()
+            except Exception as e:
+                print(f"Routine watcher error. Error Code - {e}. Restarting in 10 seconds...")
+                time.sleep(10)
+                resume_token = None
+                sync_routine_if_stale()
+
+    watcher = threading.Thread(target=_watch_routine_collection, daemon=True)
+    watcher.start()
 
 
 def is_even_week():
