@@ -185,7 +185,7 @@ async def circulate_routine(update: Update, context: ContextTypes) -> None:
     path_extension = "routine-even-week" if is_even else "routine-odd-week"
 
     routine_keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("Live Routine", url=f"https://ruet-cse-liart.vercel.app/routine/{path_extension}/")]
+        [InlineKeyboardButton("Live Routine", url=f"https://cse-c-sigma.vercel.app/routine/{path_extension}/")]
     ])
 
     msg = await update.effective_message.reply_text(

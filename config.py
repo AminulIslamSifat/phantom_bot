@@ -14,8 +14,8 @@ IS_LOCAL = os.environ["IS_LOCAL"]
 TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN_TEST"] if IS_LOCAL=="True" else os.environ["TELEGRAM_BOT_TOKEN"]
 SCREENSHOT_API = [os.environ[f"SCREENSHOT_API_{i}"] for i in range(3)]
 USE_WEBHOOK =  os.environ["USE_WEBHOOK"]
-ROUTINE_URL_ODD_WEEK = "https://ruet-cse-liart.vercel.app/routine/odd"
-ROUTINE_URL_EVEN_WEEK = "https://ruet-cse-liart.vercel.app/routine/even"
+ROUTINE_URL_ODD_WEEK = "https://cse-c-sigma.vercel.app/routine/odd"
+ROUTINE_URL_EVEN_WEEK = "https://cse-c-sigma.vercel.app/routine/even"
 routine_path_odd_week = "resources/routine/routine_odd_week.png"
 routine_path_even_week = "resources/routine/routine_even_week.png"
 syllabus_official_folder = "resources/syllabus/official/"
