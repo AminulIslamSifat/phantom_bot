@@ -58,6 +58,10 @@ def get_schedule() -> str:
             
             doc["parsed_date"] = parsed_date
             doc["countdown"] = countdown
+
+            if parsed_date is not None and parsed_date < today:
+                continue
+
             schedules.append(doc)
             
     # Sort chronologically by date
