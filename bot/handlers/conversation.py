@@ -16,6 +16,10 @@ notice_cancel_keyboard = InlineKeyboardMarkup([
     [InlineKeyboardButton("Cancel", callback_data="admin:notice:cancel")]
 ])
 
+share_file_cancel_keyboard = InlineKeyboardMarkup([
+    [InlineKeyboardButton("Cancel", callback_data="admin:share_file:cancel")]
+])
+
 
 
 #Notice publisher conversation from admin:notice
@@ -94,4 +98,51 @@ async def cancel_registration(update:Update, context:ContextTypes):
     query = update.callback_query
     await query.answer()
     await query.edit_message_text("Registration Cancelled.")
+    return ConversationHandler.END
+
+
+# Share file conversation from admin:share_file
+async def ask_for_share_file(update: Update, context: ContextTypes) -> None:
+    query = update.callback_query
+    await query.answer()
+    await query.edit_message_text("Please send the file you want to share with all users:", reply_markup=share_file_cancel_keyboard)
+    return "receive_share_file"
+
+
+async def receive_share_file(update: Update, context: ContextTypes) -> None:
+    if not os.path.exists(user_data_path):
+        await update.message.reply_text("No user data found.")
+        return ConversationHandler.END
+
+    with open(user_data_path, "r") as file:
+        user_data = json.load(file)
+
+    active_users = [
+        data["user_id"] for data in user_data.values()
+        if data["user_id"] is not None
+    ]
+
+    msg = await update.message.reply_text(f"Sending file to {len(active_users)} users...")
+
+    count = 0
+    for user_id in active_users:
+        try:
+            await context.bot.copy_message(
+                chat_id=int(user_id),
+                from_chat_id=update.effective_chat.id,
+                message_id=update.message.message_id,
+            )
+            count += 1
+        except Exception as e:
+            print(f"Error sharing file to {user_id}: {e}")
+        await msg.edit_text(f"Sending file... {count}/{len(active_users)}")
+
+    await msg.edit_text(f"File shared with {count}/{len(active_users)} users. ✅")
+    return ConversationHandler.END
+
+
+async def cancel_share_file(update: Update, context: ContextTypes) -> None:
+    query = update.callback_query
+    await query.answer()
+    await query.edit_message_text("Share File Cancelled.")
     return ConversationHandler.END

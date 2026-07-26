@@ -20,7 +20,10 @@ from bot.handlers.conversation import(
     cancel_registration,
     ask_for_notice,
     recieve_notice,
-    cancel_notice
+    cancel_notice,
+    ask_for_share_file,
+    receive_share_file,
+    cancel_share_file
 )
 from bot.handlers.coverpage import (
     cover_page_start,
@@ -74,6 +77,16 @@ app.add_handler(ConversationHandler(
         ]
     },
     fallbacks=[]
+))
+app.add_handler(ConversationHandler(
+    entry_points=[CallbackQueryHandler(ask_for_share_file, pattern="^admin:share_file$")],
+    states={
+        "receive_share_file": [
+            MessageHandler(filters.ATTACHMENT, receive_share_file),
+            CallbackQueryHandler(cancel_share_file, pattern="^admin:share_file:cancel$")
+        ]
+    },
+    fallbacks=[CallbackQueryHandler(cancel_share_file, pattern="^admin:share_file:cancel$")]
 ))
 
 # Cover page conversation — entry via reply keyboard "Cover Page" button
