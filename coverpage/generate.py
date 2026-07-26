@@ -74,15 +74,21 @@ class CoverPage(FPDF):
     def centre_line(self, text, size, style="", line_h=None):
         self.set_font("Termes", style, size)
         lh = line_h or (size * 0.4 + 1.5)
-        self.cell(CONTENT_W, lh, text, align="C", new_x="LMARGIN", new_y="NEXT")
+        self.multi_cell(CONTENT_W, lh, text, align="C", new_x="LMARGIN", new_y="NEXT")
 
     def kv_aligned(self, key, value, key_col_w, size=16, gap_after=1):
         lh = size * 0.38 + 1
+        val_w = CONTENT_W - key_col_w - 6
         self.set_font("Termes", "B", size)
-        self.cell(key_col_w, lh, key)            # bold key
-        self.cell(6,  lh, ":", align="C")        # colon
+        self.cell(key_col_w, lh, key)
+        self.cell(6, lh, ":", align="C")
         self.set_font("Termes", "", size)
-        self.cell(CONTENT_W - key_col_w - 6, lh, value, new_x="LMARGIN", new_y="NEXT")
+        x_start = self.get_x()
+        y_start = self.get_y()
+        lines = self.multi_cell(val_w, lh, value, dry_run=True, output="LINES")
+        for line in lines:
+            self.set_x(x_start)
+            self.cell(val_w, lh, line, new_x="LMARGIN", new_y="NEXT")
         if gap_after:
             self.set_y(self.get_y() + gap_after)
 
