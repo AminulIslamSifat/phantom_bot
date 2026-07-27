@@ -130,18 +130,6 @@ wheels = [
 ]
 
 [[package]]
-name = "aiohttp-wsgi"
-version = "0.10.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "aiohttp" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/e2/3a/9aa26c428d1a53d4957fb3ed64b6f4fc653c9bc458e5b0b59702e6ef0b60/aiohttp-wsgi-0.10.0.tar.gz", hash = "sha256:bc4dfabb56eadbe53662b2f13c2309350bd17e282ca4250301012adb65b84f49", size = 10486, upload-time = "2022-02-20T16:42:37.587Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/a6/ef/b438bca03733be16929fcb6fcfa1aa5f7af708572bcbcea547bb0347bfac/aiohttp_wsgi-0.10.0-py3-none-any.whl", hash = "sha256:e10da72eb430cbfd5cd5a90f49c244859c52a20619fa548aea2f64d8bf197fd7", size = 11295, upload-time = "2022-02-20T16:42:36.108Z" },
-]
-
-[[package]]
 name = "aiosignal"
 version = "1.4.0"
 source = { registry = "https://pypi.org/simple" }
@@ -786,7 +774,6 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
-    { name = "aiohttp-wsgi" },
     { name = "dnspython" },
     { name = "flask" },
     { name = "fpdf2" },
@@ -808,7 +795,6 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.14.1" },
-    { name = "aiohttp-wsgi", specifier = ">=0.10.0" },
     { name = "dnspython", specifier = ">=2.6.0" },
     { name = "flask", specifier = "==3.1.1" },
     { name = "fpdf2", specifier = ">=2.8.7" },
