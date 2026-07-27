@@ -104,6 +104,18 @@ def create_app(url_prefix: str = "") -> Flask:
     )
     if url_prefix:
         app.wsgi_app = _PrefixMiddleware(app.wsgi_app, url_prefix)
+        # Rewrite absolute href/action paths so they include the prefix.
+        # <base> doesn't fix absolute paths like href="/" — only relative ones.
+        import re as _re
+        _abs_attr = _re.compile(r'((?:href|action|src)\s*=\s*")(/(?!/))')
+
+        @app.after_request
+        def _rewrite_paths(response):
+            if response.content_type and "text/html" in response.content_type:
+                data = response.get_data(as_text=True)
+                data = _abs_attr.sub(rf'\1{url_prefix}\2', data)
+                response.set_data(data)
+            return response
     app.secret_key = os.environ.get("SECRET_KEY", "ruet-cse-change-this-secret")
 
     # ────────────────────────────────────────────────────────────────────────

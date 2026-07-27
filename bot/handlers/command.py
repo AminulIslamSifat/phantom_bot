@@ -8,13 +8,10 @@ import os
 
 
 admin_keyboard = InlineKeyboardMarkup([
-    [InlineKeyboardButton("Edit Routine", url=f"{WEB_APP_URL}/routine/editor")],
+    [InlineKeyboardButton("🛠 Admin Panel", url=f"{WEB_APP_URL}/panel/"), InlineKeyboardButton("Show User", callback_data="admin:show_user")],
     [InlineKeyboardButton("Toggle Routine", callback_data="admin:routine_toggle"), InlineKeyboardButton("Circulate Routine", callback_data="admin:circulate_routine")],
-    [InlineKeyboardButton("Edit Schedule", url=f"{WEB_APP_URL}/schedule"), InlineKeyboardButton("Circulate Schedule", callback_data="admin:circulate_schedule")],
     [InlineKeyboardButton("Publish Notice", callback_data="admin:notice"), InlineKeyboardButton("Share File", callback_data="admin:share_file")],
-    [InlineKeyboardButton("Show User", callback_data="admin:show_user")],
-    [InlineKeyboardButton("Edit Subject Teacher Data", url=f"{WEB_APP_URL}/teachers")],
-    [InlineKeyboardButton("Edit experiment/Assingment detail", url=f"{WEB_APP_URL}/experiments")],
+    [InlineKeyboardButton("Circulate Schedule", callback_data="admin:circulate_schedule")],
     [InlineKeyboardButton("Cancel", callback_data="admin:cancel")]
 ])
 
