@@ -35,10 +35,10 @@ async def panel_proxy(request):
             )
 
 
-def _start_flask_background():
+def _start_flask_background(url_prefix: str = ""):
     """Run Flask on an internal port in a daemon thread."""
     from web.app import create_app
-    flask_app = create_app()
+    flask_app = create_app(url_prefix=url_prefix)
     t = threading.Thread(
         target=lambda: flask_app.run(
             host="127.0.0.1", port=FLASK_INTERNAL_PORT, debug=False, use_reloader=False,
@@ -51,7 +51,7 @@ def _start_flask_background():
 
 async def start_unified_server(port: int, mode_label: str):
     """Start aiohttp with health check + Flask panel proxy on one port."""
-    _start_flask_background()
+    _start_flask_background(url_prefix="/panel")
     await asyncio.sleep(0.5)  # let Flask bind
 
     web_app = web.Application(client_max_size=50 * 1024 * 1024)
@@ -101,7 +101,7 @@ async def _run_custom_webhook(port: int, public_url: str):
     web_app.router.add_route("*", "/panel/{path_info:.*}", panel_proxy)
 
     # Start Flask in background thread
-    _start_flask_background()
+    _start_flask_background(url_prefix="/panel")
     await asyncio.sleep(0.5)
 
     # Set webhook URL with Telegram API

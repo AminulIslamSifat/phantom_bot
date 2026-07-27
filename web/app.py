@@ -20,6 +20,24 @@ import re
 from concurrent.futures import ThreadPoolExecutor
 
 
+class _PrefixMiddleware:
+    """WSGI middleware that strips a URL prefix so Flask sees clean paths
+    while generating URLs with the prefix intact."""
+
+    def __init__(self, app, prefix: str):
+        self.app = app
+        self.prefix = prefix.rstrip("/")
+
+    def __call__(self, environ, start_response):
+        script_name = environ.get("SCRIPT_NAME", "")
+        path_info = environ.get("PATH_INFO", "")
+        # Strip prefix from PATH_INFO so Flask routes match
+        if path_info.startswith(self.prefix):
+            environ["PATH_INFO"] = path_info[len(self.prefix):] or "/"
+        environ["SCRIPT_NAME"] = script_name + self.prefix
+        return self.app(environ, start_response)
+
+
 BASE_DIR = Path(__file__).parent
 
 # ── MongoDB ────────────────────────────────────────────────────────────────
@@ -72,13 +90,20 @@ def _load_routine(week: str) -> dict:
     return {"periods": [], "times": [], "routine": []}
 
 
-def create_app() -> Flask:
-    """Factory function to create the Flask web admin app."""
+def create_app(url_prefix: str = "") -> Flask:
+    """Factory function to create the Flask web admin app.
+
+    Args:
+        url_prefix: Set to "/panel" when running behind a reverse proxy
+                    so Flask generates correct static/template URLs.
+    """
     app = Flask(
         __name__,
         template_folder=str(BASE_DIR / "templates"),
         static_folder=str(BASE_DIR / "static"),
     )
+    if url_prefix:
+        app.wsgi_app = _PrefixMiddleware(app.wsgi_app, url_prefix)
     app.secret_key = os.environ.get("SECRET_KEY", "ruet-cse-change-this-secret")
 
     # ────────────────────────────────────────────────────────────────────────
