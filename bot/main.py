@@ -2,7 +2,7 @@ import asyncio
 import threading
 from aiohttp import web, ClientSession
 from telegram import Update
-from bot import app
+from bot import build_app, register_handlers, app
 import os
 from bot.services.database import load_data
 from bot.services.routine import start_routine_watcher
@@ -84,14 +84,15 @@ async def _run_custom_webhook(port: int, public_url: str):
     """
     webhook_path = TELEGRAM_BOT_TOKEN
 
-    # Disable PTB's built-in updater so we manage the server ourselves
-    app._updater = None
+    # Build a fresh app without PTB's built-in updater — we manage the server
+    ptb_app = build_app(with_updater=False)
+    register_handlers(ptb_app)
 
     async def telegram_webhook(request):
         """Receive Telegram updates and feed them into PTB's update queue."""
         data = await request.json()
-        update = Update.de_json(data=data, bot=app.bot)
-        await app.update_queue.put(update)
+        update = Update.de_json(data=data, bot=ptb_app.bot)
+        await ptb_app.update_queue.put(update)
         return web.Response(status=200)
 
     # Build aiohttp app with all routes
@@ -105,14 +106,14 @@ async def _run_custom_webhook(port: int, public_url: str):
     await asyncio.sleep(0.5)
 
     # Set webhook URL with Telegram API
-    await app.bot.set_webhook(
+    await ptb_app.bot.set_webhook(
         url=public_url,
         allowed_updates=["message", "callback_query"],
     )
 
     # Start PTB application (handlers, post_init, etc.) without its own server
-    async with app:
-        await app.start()
+    async with ptb_app:
+        await ptb_app.start()
 
         # Start our custom aiohttp server
         runner = web.AppRunner(web_app)
