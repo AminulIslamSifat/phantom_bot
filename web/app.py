@@ -50,7 +50,7 @@ phantom_db   = client["phantom_bot_db"]
 
 # ── Admin Auth ────────────────────────────────────────────────────────────
 ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "admin")
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin123")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin")
 
 SCHEDULE_TYPES = ["CT", "Assignment", "Semester Final", "Backlog"]
 
