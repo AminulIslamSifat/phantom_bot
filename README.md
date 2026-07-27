@@ -211,7 +211,7 @@ Access with `/admin` command (whitelisted Telegram IDs in `config.admin_list`).
 ### MongoDB — `schedule`
 
 | Collection | Purpose |
-|---|---|
+|---|---|f
 | `ct` | Class test schedules |
 | `assignment` | Assignment deadlines |
 | `semester_final` | Semester final exam dates |

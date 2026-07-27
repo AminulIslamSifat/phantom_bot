@@ -46,8 +46,9 @@ def run_webhook():
     public_url = f"{WEBHOOK_URL.rstrip('/')}/{webhook_path}"
     print(f"Starting in WEBHOOK mode → {public_url} (port {port})")
 
-    # PTB's webhook server handles health checks via the webhook endpoint itself,
-    # so no separate health server needed in webhook mode.
+    # Python 3.14+ requires an explicit event loop before PTB can find one
+    asyncio.set_event_loop(asyncio.new_event_loop())
+
     app.run_webhook(
         listen="0.0.0.0",
         port=port,
