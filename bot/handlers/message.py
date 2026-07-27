@@ -8,6 +8,7 @@ from config import (
 )
 from bot.services.routine import is_even_week
 from bot.services.schedule import get_schedule
+from bot.services.rate_limit import is_rate_limited
 from config import ROUTINE_URL_EVEN_WEEK, ROUTINE_URL_ODD_WEEK
 
 resources_keyboard = InlineKeyboardMarkup([
@@ -60,6 +61,13 @@ async def schedule(update:Update, context:ContextTypes):
 async def message_handler(update: Update, context: ContextTypes) -> None:
     user_text = update.message.text
     user_id = update.effective_user.id
+
+    if is_rate_limited(user_id):
+        await update.message.reply_text(
+            "⏳ Slow down! Max 3 messages per 10 seconds.",
+            reply_markup=main_keyboard
+        )
+        return
 
     predefined_commands = {
         "Routine": routine,
