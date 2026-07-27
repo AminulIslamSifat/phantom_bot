@@ -40,16 +40,17 @@ def run_webhook():
             "WEBHOOK_URL is not set. "
             "Add it to .env (e.g. WEBHOOK_URL=https://your-domain.com)"
         )
+    # Render sets $PORT; fall back to WEBHOOK_PORT from config
+    port = int(os.environ.get("PORT", WEBHOOK_PORT))
     webhook_path = TELEGRAM_BOT_TOKEN
     public_url = f"{WEBHOOK_URL.rstrip('/')}/{webhook_path}"
-    print(f"Starting in WEBHOOK mode → {public_url}")
+    print(f"Starting in WEBHOOK mode → {public_url} (port {port})")
 
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.create_task(start_health_server())
+    # PTB's webhook server handles health checks via the webhook endpoint itself,
+    # so no separate health server needed in webhook mode.
     app.run_webhook(
         listen="0.0.0.0",
-        port=WEBHOOK_PORT,
+        port=port,
         url_path=webhook_path,
         webhook_url=public_url,
     )
