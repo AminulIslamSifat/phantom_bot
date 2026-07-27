@@ -18,7 +18,7 @@ async def health(request):
 async def panel_proxy(request):
     """Reverse-proxy /panel/* requests to the internal Flask server."""
     path = request.match_info.get("path_info", "")
-    url = f"http://127.0.0.1:{FLASK_INTERNAL_PORT}/{path}"
+    url = f"http://127.0.0.1:{FLASK_INTERNAL_PORT}/panel/{path}"
     headers = {k: v for k, v in request.headers.items()
                if k.lower() not in ("host", "transfer-encoding")}
     body = await request.read()

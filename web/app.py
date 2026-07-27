@@ -49,8 +49,31 @@ schedule_db  = client["schedule"]
 phantom_db   = client["phantom_bot_db"]
 
 # ── Admin Auth ────────────────────────────────────────────────────────────
+from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
+
 ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin")
+_auth_serializer: URLSafeTimedSerializer | None = None
+AUTH_COOKIE = "admin_token"
+AUTH_MAX_AGE = 86400  # 24h
+
+
+def _get_serializer(app) -> URLSafeTimedSerializer:
+    global _auth_serializer
+    if _auth_serializer is None:
+        _auth_serializer = URLSafeTimedSerializer(app.secret_key, salt="admin-auth")
+    return _auth_serializer
+
+
+def _is_admin_logged_in(app) -> bool:
+    token = request.cookies.get(AUTH_COOKIE)
+    if not token:
+        return False
+    try:
+        _get_serializer(app).loads(token, max_age=AUTH_MAX_AGE)
+        return True
+    except (BadSignature, SignatureExpired):
+        return False
 
 SCHEDULE_TYPES = ["CT", "Assignment", "Semester Final", "Backlog"]
 
@@ -107,7 +130,7 @@ def create_app(url_prefix: str = "") -> Flask:
         # Rewrite absolute href/action paths so they include the prefix.
         # <base> doesn't fix absolute paths like href="/" — only relative ones.
         import re as _re
-        _abs_attr = _re.compile(r'((?:href|action|src)\s*=\s*")(/(?!/))')
+        _abs_attr = _re.compile(rf'((?:href|action|src)\s*=\s*")(/(?!/|{url_prefix.lstrip("/")}/))')
 
         @app.after_request
         def _rewrite_paths(response):
@@ -117,9 +140,7 @@ def create_app(url_prefix: str = "") -> Flask:
                 response.set_data(data)
             return response
     app.secret_key = os.environ.get("SECRET_KEY", "ruet-cse-change-this-secret")
-    if url_prefix:
-        app.config["APPLICATION_ROOT"] = url_prefix
-        app.config["SESSION_COOKIE_PATH"] = url_prefix
+
 
     # ────────────────────────────────────────────────────────────────────────
     # Homepage
@@ -212,33 +233,43 @@ def create_app(url_prefix: str = "") -> Flask:
 
     @app.route("/schedule")
     def schedule_index():
-        docs = {}
+        schedules = []
         for stype in SCHEDULE_TYPES:
             coll = get_collection(stype)
-            docs[stype] = list(coll.find().sort("date", -1))
-            for d in docs[stype]:
+            for d in coll.find().sort("date", -1):
                 d["_id"] = str(d["_id"])
-        return render_template("schedule_index.html", schedule_types=SCHEDULE_TYPES, docs=docs)
+                d["type"] = stype
+                schedules.append(d)
+        return render_template("schedule_index.html", types=SCHEDULE_TYPES, schedules=schedules)
 
-    @app.route("/schedule/add/<stype>", methods=["POST"])
-    def schedule_add(stype):
+    @app.route("/schedule/add", methods=["POST"])
+    def schedule_add():
+        stype = request.form.get("type", "").strip()
         if stype not in SCHEDULE_TYPES:
             return "Invalid type", 400
         subject = request.form.get("subject", "").strip()
+        teacher = request.form.get("teacher", "").strip()
         date_str = request.form.get("date", "").strip()
-        note = request.form.get("note", "").strip()
-        if not subject or not date_str:
-            return "Subject and date required", 400
-        try:
-            dt = datetime.strptime(date_str, "%Y-%m-%d").date()
-        except ValueError:
-            return "Invalid date format", 400
-        get_collection(stype).insert_one({"subject": subject, "date": dt, "note": note})
+        time_str = request.form.get("time", "").strip()
+        topic = request.form.get("topic", "").strip()
+        syllabus = request.form.get("syllabus", "").strip()
+        if not subject:
+            return "Subject required", 400
+        doc = {"subject": subject, "teacher": teacher, "date": date_str,
+               "time": time_str, "topic": topic, "syllabus": syllabus}
+        get_collection(stype).insert_one(doc)
         clear_home_stats_cache()
         return redirect(url_for("schedule_index"))
 
+    def _resolve_stype(slug: str) -> str | None:
+        for t in SCHEDULE_TYPES:
+            if t.lower().replace(" ", "_") == slug:
+                return t
+        return None
+
     @app.route("/schedule/edit/<stype>/<oid>", methods=["GET", "POST"])
     def schedule_edit(stype, oid):
+        stype = _resolve_stype(stype) or stype
         if stype not in SCHEDULE_TYPES:
             return "Invalid type", 400
         try:
@@ -250,23 +281,26 @@ def create_app(url_prefix: str = "") -> Flask:
         if not doc:
             return "Not found", 404
         if request.method == "POST":
-            subject = request.form.get("subject", "").strip()
-            date_str = request.form.get("date", "").strip()
-            note = request.form.get("note", "").strip()
-            try:
-                dt = datetime.strptime(date_str, "%Y-%m-%d").date()
-            except ValueError:
-                return "Invalid date format", 400
-            coll.update_one({"_id": oid_obj}, {"$set": {"subject": subject, "date": dt, "note": note}})
+            update = {
+                "subject": request.form.get("subject", "").strip(),
+                "teacher": request.form.get("teacher", "").strip(),
+                "date": request.form.get("date", "").strip(),
+                "time": request.form.get("time", "").strip(),
+                "topic": request.form.get("topic", "").strip(),
+                "syllabus": request.form.get("syllabus", "").strip(),
+            }
+            coll.update_one({"_id": oid_obj}, {"$set": update})
             clear_home_stats_cache()
             return redirect(url_for("schedule_index"))
         doc["_id"] = str(doc["_id"])
+        doc["type"] = stype
         if isinstance(doc.get("date"), (date, datetime)):
             doc["date"] = doc["date"].strftime("%Y-%m-%d")
-        return render_template("schedule_edit.html", stype=stype, doc=doc)
+        return render_template("schedule_edit.html", schedule=doc)
 
     @app.route("/schedule/delete/<stype>/<oid>", methods=["POST"])
     def schedule_delete(stype, oid):
+        stype = _resolve_stype(stype) or stype
         if stype not in SCHEDULE_TYPES:
             return "Invalid type", 400
         try:
@@ -445,6 +479,8 @@ def create_app(url_prefix: str = "") -> Flask:
                     "roll": roll,
                     "name": user_data.get("name", "Unknown"),
                     "is_admin": roll in admin_rolls,
+                    "user_id": str(user_data.get("user_id", "")),
+                    "section": user_data.get("section", ""),
                 })
 
             users.sort(key=lambda u: u["roll"])
@@ -459,31 +495,39 @@ def create_app(url_prefix: str = "") -> Flask:
             username = request.form.get("username", "").strip()
             password = request.form.get("password", "").strip()
             if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
-                session["admin_logged_in"] = True
-                return redirect(url_for("admin_panel"))
+                token = _get_serializer(app).dumps(username)
+                resp = redirect(url_for("admin_panel"))
+                resp.set_cookie(AUTH_COOKIE, token, max_age=AUTH_MAX_AGE, path="/", httponly=True, samesite="Lax")
+                return resp
             return render_template("admin_login.html", error="Invalid credentials")
         return render_template("admin_login.html")
 
     @app.route("/admin/logout")
     def admin_logout():
-        session.pop("admin_logged_in", None)
-        return redirect(url_for("home"))
+        resp = redirect(url_for("home"))
+        resp.delete_cookie(AUTH_COOKIE, path="/")
+        return resp
 
     @app.route("/admin")
     def admin_panel():
-        if not session.get("admin_logged_in"):
+        if not _is_admin_logged_in(app):
             return redirect(url_for("admin_login"))
-        return render_template("admin_panel.html")
+        return render_template("admin_panel.html", url_prefix=url_prefix or "")
 
     @app.route("/admin/api/users")
     def admin_api_users():
-        if not session.get("admin_logged_in"):
+        if not _is_admin_logged_in(app):
             return jsonify({"error": "Unauthorized"}), 401
-        return jsonify(load_users())
+        users = load_users()
+        for u in users:
+            u["status"] = "admin" if u.get("is_admin") else "user"
+            u.setdefault("section", "")
+            u.setdefault("user_id", "")
+        return jsonify(users)
 
     @app.route("/admin/promote", methods=["POST"])
     def admin_promote():
-        if not session.get("admin_logged_in"):
+        if not _is_admin_logged_in(app):
             return jsonify({"error": "Unauthorized"}), 401
         data = request.get_json(silent=True) or {}
         roll = data.get("roll", "").strip()
@@ -499,7 +543,7 @@ def create_app(url_prefix: str = "") -> Flask:
 
     @app.route("/admin/demote", methods=["POST"])
     def admin_demote():
-        if not session.get("admin_logged_in"):
+        if not _is_admin_logged_in(app):
             return jsonify({"error": "Unauthorized"}), 401
         data = request.get_json(silent=True) or {}
         roll = data.get("roll", "").strip()
