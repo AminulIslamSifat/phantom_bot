@@ -117,6 +117,9 @@ def create_app(url_prefix: str = "") -> Flask:
                 response.set_data(data)
             return response
     app.secret_key = os.environ.get("SECRET_KEY", "ruet-cse-change-this-secret")
+    if url_prefix:
+        app.config["APPLICATION_ROOT"] = url_prefix
+        app.config["SESSION_COOKIE_PATH"] = url_prefix
 
     # ────────────────────────────────────────────────────────────────────────
     # Homepage
