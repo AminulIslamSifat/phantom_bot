@@ -58,10 +58,10 @@ def _load_json(path: Path) -> dict:
         return json.load(f)
 
 
-def _subject_has_experiments(subject: str) -> bool:
+async def _subject_has_experiments(subject: str) -> bool:
     """True if MongoDB has a non-empty experiment list for this subject."""
     try:
-        subject_doc = get_subject_experiments(subject)
+        subject_doc = await get_subject_experiments(subject)
     except Exception as e:
         print(f"[coverpage] get_subject_experiments error for '{subject}': {e}")
         return False
@@ -191,14 +191,14 @@ def _build_experiment_keyboard(experiments: dict) -> InlineKeyboardMarkup:
 
 # ─── Entry point: subject selection ────────────────────────────────────────
 
-def _available_subjects(teacher_data: dict) -> list[str]:
+async def _available_subjects(teacher_data: dict) -> list[str]:
     """Sessional subjects are always available; theory subjects only if they have experiments listed."""
     subjects = []
     for subject, info in teacher_data.items():
         subject_type = info.get("type", "sessional")
         if subject_type == "sessional":
             subjects.append(subject)
-        elif subject_type == "theory" and _subject_has_experiments(subject):
+        elif subject_type == "theory" and await _subject_has_experiments(subject):
             subjects.append(subject)
     return subjects
 
@@ -208,7 +208,7 @@ async def cover_page_start(update: Update, context: ContextTypes) -> str:
     context.user_data.clear()
 
     teacher_data = _load_json(TEACHER_SUBJECT_PATH)
-    subjects = _available_subjects(teacher_data)
+    subjects = await _available_subjects(teacher_data)
 
     if not subjects:
         await update.message.reply_text(
@@ -228,7 +228,7 @@ async def cover_page_start(update: Update, context: ContextTypes) -> str:
 # ─── Step 1: subject -> teacher / experiment ───────────────────────────────
 
 async def _transition_to_experiment_step(query, context: ContextTypes, subject: str) -> str:
-    subject_doc = get_subject_experiments(subject)
+    subject_doc = await get_subject_experiments(subject)
     subject_info = _load_json(TEACHER_SUBJECT_PATH).get(subject, {})
     subject_type = subject_info.get("type", "sessional")
 
@@ -366,7 +366,7 @@ async def cp_receive_manual_exp(update: Update, context: ContextTypes) -> str:
     context.user_data["cp_exp_title"] = exp_title
     context.user_data["cp_exp_type"] = exp_type
 
-    add_experiment_to_subject(subject, exp_no, exp_title, exp_type)
+    await add_experiment_to_subject(subject, exp_no, exp_title, exp_type)
 
     return await _ask_for_dates(update, context)
 
@@ -490,7 +490,7 @@ async def _generate_and_send(context: ContextTypes, user_id: int, roll: str, stu
     except Exception as e:
         print(f"[coverpage] Clean-up error: {e}")
 
-    save_coverpage_record(
+    await save_coverpage_record(
         user_id=user_id,
         roll=roll,
         subject=subject,

@@ -12,12 +12,16 @@ dependencies = [
 	"python-telegram-bot[webhooks]>=21,<22",
 	"python-dotenv>=1,<2",
 	"requests>=2.31,<3",
-    "aiohttp>=3.14.1",
+	"aiohttp>=3.14.1",
+	"aiohttp-wsgi>=0.10.0",
 	"pymongo[srv]",
 	"yt-dlp",
 	"telethon==1.44.0",
 	"fpdf2>=2.8.7",
 	"pillow>=12.3.0",
+	"flask==3.1.1",
+	"gunicorn==23.0.0",
+	"dnspython>=2.6.0",
 ]
 
 [project.optional-dependencies]
@@ -28,7 +32,7 @@ py-modules = ["config"]
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["bot*"]
+include = ["bot*", "web*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

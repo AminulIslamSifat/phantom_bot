@@ -1,9 +1,15 @@
 from config import mdb_client, user_data_path, routine_week_selector_path
+import asyncio
 import json
 import os
 import re
 from pathlib import Path
 from datetime import datetime
+
+
+async def run_db(func, *args):
+    """Run a synchronous pymongo call in a thread so it doesn't block asyncio."""
+    return await asyncio.to_thread(func, *args)
 
 
 
@@ -36,17 +42,18 @@ def load_users():
         print(f"Error while loading the user data. Error code - {e}")
 
 
-def get_user_by_roll(roll: str) -> dict | None:
+async def get_user_by_roll(roll: str) -> dict | None:
     try:
-        return db[USERS_COLLECTION].find_one({"roll": str(roll)})
+        return await run_db(db[USERS_COLLECTION].find_one, {"roll": str(roll)})
     except Exception as e:
         print(f"Error while fetching user from '{USERS_COLLECTION}' collection. Error code - {e}")
         return None
 
 
-def set_user_telegram_id(roll: str, user_id: int) -> bool:
+async def set_user_telegram_id(roll: str, user_id: int) -> bool:
     try:
-        result = db[USERS_COLLECTION].update_one(
+        result = await run_db(
+            db[USERS_COLLECTION].update_one,
             {"roll": str(roll)},
             {"$set": {"user_id": user_id}}
         )
@@ -56,9 +63,10 @@ def set_user_telegram_id(roll: str, user_id: int) -> bool:
         return False
 
 
-def unset_user_telegram_id(user_id: int) -> None:
+async def unset_user_telegram_id(user_id: int) -> None:
     try:
-        db[USERS_COLLECTION].update_many(
+        await run_db(
+            db[USERS_COLLECTION].update_many,
             {"user_id": user_id},
             {"$set": {"user_id": None}}
         )
@@ -82,7 +90,7 @@ def load_routine_odd_even_sequence():
         print(f"Error while loading routine week data. Error code - {e}")
 
 
-def update_mongodb_data(collection, data, database=db):
+async def update_mongodb_data(collection, data, database=db):
     """
     Upsert a document into `collection`.
     If `data` contains an 'id' key, it is used as the filter so the document
@@ -92,9 +100,9 @@ def update_mongodb_data(collection, data, database=db):
     try:
         col = db[collection]
         if "id" in data:
-            col.replace_one({"id": data["id"]}, data, upsert=True)
+            await run_db(col.replace_one, {"id": data["id"]}, data, True)
         else:
-            col.insert_one(data)
+            await run_db(col.insert_one, data)
     except Exception as e:
         print(f"Error while updating the mongodb collection data. Error code - {e}")
 
@@ -142,7 +150,7 @@ def load_teacher_data():
 _coverpage_col = db["coverpage"]
 
 
-def save_coverpage_record(
+async def save_coverpage_record(
     user_id: int,
     roll: str,
     subject: str,
@@ -153,7 +161,7 @@ def save_coverpage_record(
 ) -> None:
     """Persist a generated cover page record for future date hints."""
     try:
-        _coverpage_col.insert_one(
+        await run_db(_coverpage_col.insert_one,
             {
                 "user_id": user_id,
                 "roll": roll,
@@ -280,23 +288,24 @@ def load_subject_experiments() -> None:
         print(f"[db] Error loading subject_experiments: {e}")
 
 
-def get_subject_experiments(subject_name: str) -> dict | None:
+async def get_subject_experiments(subject_name: str) -> dict | None:
     """Get subject experiments from MongoDB using normalized subject name."""
     try:
         normalized = re.sub(r"[\s\-]+", "", subject_name).upper()
-        return db["subject_experiments"].find_one({"normalized": normalized})
+        return await run_db(db["subject_experiments"].find_one, {"normalized": normalized})
     except Exception as e:
         print(f"[db] Error fetching subject experiments: {e}")
         return None
 
 
-def add_experiment_to_subject(subject_name: str, exp_no: str, title: str, exp_type: str) -> None:
+async def add_experiment_to_subject(subject_name: str, exp_no: str, title: str, exp_type: str) -> None:
     """Add a manual experiment to a subject in MongoDB, if it doesn't already exist."""
     try:
         normalized = re.sub(r"[\s\-]+", "", subject_name).upper()
-        doc = db["subject_experiments"].find_one({"normalized": normalized})
+        col = db["subject_experiments"]
+        doc = await run_db(col.find_one, {"normalized": normalized})
         if not doc:
-            db["subject_experiments"].insert_one({
+            await run_db(col.insert_one, {
                 "subject": subject_name,
                 "normalized": normalized,
                 "type": "sessional" if exp_type == "Lab Report" else "theory",
@@ -315,7 +324,7 @@ def add_experiment_to_subject(subject_name: str, exp_no: str, title: str, exp_ty
                 "type": exp_type,
                 "title": title
             }
-            db["subject_experiments"].update_one(
+            await run_db(col.update_one,
                 {"normalized": normalized},
                 {"$set": {"experiments": experiments}}
             )

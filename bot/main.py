@@ -1,5 +1,6 @@
 import asyncio
 from aiohttp import web
+from aiohttp_wsgi import WSGIHandler
 from bot import app
 import os
 from bot.services.database import load_data
@@ -12,15 +13,22 @@ async def health(request):
 
 
 async def start_health_server():
+    from web.app import create_app
+
+    flask_app = create_app()
+    wsgi_handler = WSGIHandler(flask_app)
+
     web_app = web.Application()
     web_app.router.add_get("/", health)
+    # Mount Flask admin panel under /panel — one port, one tunnel
+    web_app.router.add_route("*", "/panel/{path_info:.*}", wsgi_handler)
 
     runner = web.AppRunner(web_app)
     await runner.setup()
     port = int(os.environ.get("PORT", 8000))
     site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
-    print(f"Health check running on port {port}")
+    print(f"Health + Flask panel running on port {port} (panel at /panel/)")
     await asyncio.Event().wait()
 
 

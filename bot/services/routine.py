@@ -7,6 +7,7 @@ from datetime import date, datetime, timedelta
 from config import (
     ROUTINE_URL_ODD_WEEK,
     ROUTINE_URL_EVEN_WEEK,
+    WEB_APP_URL,
     routine_path_odd_week,
     routine_path_even_week,
     routine_week_selector_path,
@@ -155,7 +156,7 @@ def is_even_week():
     return (is_even, str(activation_date))
 
 
-def toggle_routine():
+async def toggle_routine():
     week = get_routine_week()
     toggled_week = "even" if week=="odd" else "odd"
     data = {
@@ -164,7 +165,7 @@ def toggle_routine():
     }
     with open(routine_week_selector_path, "w") as file:
         json.dump(data, file, indent=4)
-    update_mongodb_data("routine_week_selector", data)
+    await update_mongodb_data("routine_week_selector", data)
     print("Routine toggled successfully")
 
 
@@ -182,10 +183,10 @@ async def circulate_routine(update: Update, context: ContextTypes) -> None:
 
     is_even, starting_date = is_even_week()
     routine_path = routine_path_even_week if is_even else routine_path_odd_week
-    path_extension = "routine-even-week" if is_even else "routine-odd-week"
+    week_slug = "even" if is_even else "odd"
 
     routine_keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("Live Routine", url=f"https://cse-c-sigma.vercel.app/routine/{path_extension}/")]
+        [InlineKeyboardButton("Live Routine", url=f"{WEB_APP_URL}/routine/{week_slug}")]
     ])
 
     msg = await update.effective_message.reply_text(

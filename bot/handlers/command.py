@@ -1,6 +1,6 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
-from config import main_keyboard, user_data_path
+from config import main_keyboard, user_data_path, WEB_APP_URL
 from bot.services.database import db
 import json
 import os
@@ -8,13 +8,13 @@ import os
 
 
 admin_keyboard = InlineKeyboardMarkup([
-    [InlineKeyboardButton("Edit Routine", url="https://cse-c-sigma.vercel.app/routine/editor")],
+    [InlineKeyboardButton("Edit Routine", url=f"{WEB_APP_URL}/routine/editor")],
     [InlineKeyboardButton("Toggle Routine", callback_data="admin:routine_toggle"), InlineKeyboardButton("Circulate Routine", callback_data="admin:circulate_routine")],
-    [InlineKeyboardButton("Edit Schedule", url="https://cse-c-sigma.vercel.app/schedule"), InlineKeyboardButton("Circulate Schedule", callback_data="admin:circulate_schedule")],
+    [InlineKeyboardButton("Edit Schedule", url=f"{WEB_APP_URL}/schedule"), InlineKeyboardButton("Circulate Schedule", callback_data="admin:circulate_schedule")],
     [InlineKeyboardButton("Publish Notice", callback_data="admin:notice"), InlineKeyboardButton("Share File", callback_data="admin:share_file")],
     [InlineKeyboardButton("Show User", callback_data="admin:show_user")],
-    [InlineKeyboardButton("Edit Subject Teacher Data", url="https://cse-c-sigma.vercel.app/teachers")],
-    [InlineKeyboardButton("Edit experiment/Assingment detail", url="https://cse-c-sigma.vercel.app/experiments")],
+    [InlineKeyboardButton("Edit Subject Teacher Data", url=f"{WEB_APP_URL}/teachers")],
+    [InlineKeyboardButton("Edit experiment/Assingment detail", url=f"{WEB_APP_URL}/experiments")],
     [InlineKeyboardButton("Cancel", callback_data="admin:cancel")]
 ])
 
@@ -48,7 +48,8 @@ async def help(update:Update, context:ContextTypes) -> None:
 
 async def admin(update:Update, context:ContextTypes) -> None:
     user_id = update.effective_user.id
-    is_admin = db["admin"].find_one({"user_id": {"$in": [user_id, str(user_id)]}})
+    import asyncio
+    is_admin = await asyncio.to_thread(db["admin"].find_one, {"user_id": {"$in": [user_id, str(user_id)]}})
     if not is_admin:
         await update.message.reply_text("Sorry, You are not an admin")
         return

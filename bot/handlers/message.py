@@ -46,7 +46,7 @@ async def routine(update, context):
 
 async def schedule(update:Update, context:ContextTypes):
     try:
-        schedule_text = get_schedule()
+        schedule_text = await get_schedule()
         await update.message.reply_text(
             schedule_text, 
             reply_markup=main_keyboard, 

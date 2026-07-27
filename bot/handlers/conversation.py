@@ -82,9 +82,9 @@ async def recieve_roll(update:Update, context:ContextTypes) -> None:
         await update.message.reply_text("Sorry, You are not eligible to use this bot.")
         return ConversationHandler.END
 
-    unset_user_telegram_id(user_id)
+    await unset_user_telegram_id(user_id)
 
-    if not set_user_telegram_id(str(roll), user_id):
+    if not await set_user_telegram_id(str(roll), user_id):
         await update.message.reply_text("Sorry, your roll number was not found in the database. Contact an admin.")
         return ConversationHandler.END
 

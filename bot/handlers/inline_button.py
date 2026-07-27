@@ -57,8 +57,7 @@ async def admin_button_handler(update:Update, context:ContextTypes) -> None:
         if query.data == "admin:routine_toggle":
             await query.edit_message_text("Please make sure if you really want to toggle the routine: ", reply_markup=admin_toggle_routine_keyboard)
         elif query.data == "admin:toggle_routine:confirm":
-            loop = asyncio.get_running_loop()
-            await loop.run_in_executor(None, toggle_routine)
+            await toggle_routine()
             await query.edit_message_text("Routine Toggled Successfully.")
         elif query.data == "admin:circulate_routine":
             print("routine circulation")

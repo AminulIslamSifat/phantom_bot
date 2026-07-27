@@ -6,13 +6,13 @@ from config import mdb_client, user_data_path
 from telegram import Update
 from telegram.ext import ContextTypes
 
-def get_schedule() -> str:
+async def get_schedule() -> str:
     schedule_db = mdb_client["schedule"]
     
     # We want to fetch schedules from standard collections
     collections = ["ct", "assignment", "semester_final", "backlog"]
     
-    db_cols = schedule_db.list_collection_names()
+    db_cols = await asyncio.to_thread(schedule_db.list_collection_names)
     for col in db_cols:
         if col not in collections and not col.startswith("system."):
             collections.append(col)
@@ -33,7 +33,7 @@ def get_schedule() -> str:
         else:
             display_type = col_name.replace("_", " ").title()
             
-        docs = list(col.find())
+        docs = await asyncio.to_thread(lambda c=col: list(c.find()))
         for doc in docs:
             doc["type"] = display_type
             
@@ -130,7 +130,7 @@ async def circulate_schedule(update: Update, context: ContextTypes) -> None:
         return await msg.reply_text("No active users found to circulate to.")
 
     try:
-        schedule_text = get_schedule()
+        schedule_text = await get_schedule()
     except Exception as e:
         print(f"Error fetching schedule: {e}")
         msg = update.message if update.message else update.callback_query.message
