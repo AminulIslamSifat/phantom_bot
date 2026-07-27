@@ -1,6 +1,7 @@
 import asyncio
 import threading
 from aiohttp import web, ClientSession
+from telegram import Update
 from bot import app
 import os
 from bot.services.database import load_data
@@ -75,6 +76,55 @@ def run_local():
     app.run_polling()
 
 
+async def _run_custom_webhook(port: int, public_url: str):
+    """
+    Custom webhook server following PTB v21 official pattern.
+    Owns the aiohttp server directly — handles Telegram updates + Flask panel on one port.
+    See: https://docs.python-telegram-bot.org/en/v21.9/examples.customwebhookbot.html
+    """
+    webhook_path = TELEGRAM_BOT_TOKEN
+
+    # Disable PTB's built-in updater so we manage the server ourselves
+    app._updater = None
+
+    async def telegram_webhook(request):
+        """Receive Telegram updates and feed them into PTB's update queue."""
+        data = await request.json()
+        update = Update.de_json(data=data, bot=app.bot)
+        await app.update_queue.put(update)
+        return web.Response(status=200)
+
+    # Build aiohttp app with all routes
+    web_app = web.Application(client_max_size=50 * 1024 * 1024)
+    web_app.router.add_get("/", health)
+    web_app.router.add_post(f"/{webhook_path}", telegram_webhook)
+    web_app.router.add_route("*", "/panel/{path_info:.*}", panel_proxy)
+
+    # Start Flask in background thread
+    _start_flask_background()
+    await asyncio.sleep(0.5)
+
+    # Set webhook URL with Telegram API
+    await app.bot.set_webhook(
+        url=public_url,
+        allowed_updates=["message", "callback_query"],
+    )
+
+    # Start PTB application (handlers, post_init, etc.) without its own server
+    async with app:
+        await app.start()
+
+        # Start our custom aiohttp server
+        runner = web.AppRunner(web_app)
+        await runner.setup()
+        site = web.TCPSite(runner, "0.0.0.0", port)
+        await site.start()
+        print(f"Custom webhook + Flask panel on port {port} (panel at /panel/)")
+
+        # Keep running forever
+        await asyncio.Event().wait()
+
+
 def run_webhook():
     """Webhook mode for production deployment (Render)."""
     if not WEBHOOK_URL:
@@ -86,40 +136,7 @@ def run_webhook():
     public_url = f"{WEBHOOK_URL.rstrip('/')}/{TELEGRAM_BOT_TOKEN}"
     print(f"Starting in WEBHOOK mode → {public_url} (port {port})")
 
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-    # Start PTB webhook on its own internal port, then run unified server
-    # on $PORT with Flask panel + health, proxying webhook to PTB
-    ptb_port = port + 1 if port < 65534 else port - 1
-
-    async def _run_both():
-        # Start PTB webhook on internal port
-        await app.bot.set_webhook(
-            url=f"{WEBHOOK_URL.rstrip('/')}/{TELEGRAM_BOT_TOKEN}",
-            allowed_updates=["message", "callback_query"],
-        )
-        # We still need PTB's webhook receiver — run it via run_webhook on ptb_port
-        # But since we can't easily merge, just use PTB's built-in on the SAME port
-        # Actually simplest: just add panel_proxy to PTB's own server
-        pass
-
-    # Simplest reliable approach: PTB owns the port, Flask runs in background thread,
-    # and we add a custom route to PTB's aiohttp app via post_init
-    async def post_init(application):
-        """Inject Flask panel proxy into PTB's aiohttp web app."""
-        _start_flask_background()
-        await asyncio.sleep(0.5)
-        application.web_app.router.add_route("*", "/panel/{path_info:.*}", panel_proxy)
-        print("Flask panel mounted at /panel/ on webhook server")
-
-    app.post_init = post_init
-    app.run_webhook(
-        listen="0.0.0.0",
-        port=port,
-        url_path=TELEGRAM_BOT_TOKEN,
-        webhook_url=public_url,
-    )
+    asyncio.run(_run_custom_webhook(port, public_url))
 
 
 if __name__ == "__main__":
