@@ -3,9 +3,9 @@
    ─────────────────────────────────────────────────────────────── */
 
 const ROUTINE_KEYS  = { odd: 'ruet_routine_odd', even: 'ruet_routine_even' };
-const API_LOAD_BASE = '/routine/data/';
-const API_SAVE_URL  = '/routine/save';
-
+const P = window.URL_PREFIX || "";
+const API_LOAD_BASE = P + '/routine/data/';
+const API_SAVE_URL  = P + '/routine/save';
 // ── Module state ──────────────────────────────────────────────────────────
 let currentData     = null;   // { periods, times, routine }
 let currentWeek     = 'odd';

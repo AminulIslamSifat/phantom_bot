@@ -205,7 +205,7 @@ def create_app(url_prefix: str = "") -> Flask:
 
     @app.route("/routine/editor")
     def routine_editor():
-        return render_template("routine_editor.html")
+        return render_template("routine_editor.html", url_prefix=url_prefix or "")
 
     @app.route("/routine/save", methods=["POST"])
     def routine_save():
