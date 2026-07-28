@@ -8,7 +8,7 @@ import os
 
 
 admin_keyboard = InlineKeyboardMarkup([
-    [InlineKeyboardButton("🛠 Admin Panel", url=f"{WEB_APP_URL}/panel/"), InlineKeyboardButton("Show User", callback_data="admin:show_user")],
+    [InlineKeyboardButton("🛠 Admin Panel", url=f"{WEB_APP_URL}/"), InlineKeyboardButton("Show User", callback_data="admin:show_user")],
     [InlineKeyboardButton("Toggle Routine", callback_data="admin:routine_toggle"), InlineKeyboardButton("Circulate Routine", callback_data="admin:circulate_routine")],
     [InlineKeyboardButton("Publish Notice", callback_data="admin:notice"), InlineKeyboardButton("Share File", callback_data="admin:share_file")],
     [InlineKeyboardButton("Circulate Schedule", callback_data="admin:circulate_schedule")],
